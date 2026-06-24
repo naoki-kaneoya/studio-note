@@ -27,3 +27,6 @@ npm-debug.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# ローカルプレビュー設定（claude preview用）
+.claude/

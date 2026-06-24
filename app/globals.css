@@ -1,0 +1,49 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --booking-bar-height: 64px;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  @apply bg-base text-ink antialiased;
+  font-feature-settings: "palt";
+}
+
+/* スマホ固定予約バー分の余白（重なり防止） */
+@media (max-width: 767px) {
+  body {
+    padding-bottom: var(--booking-bar-height);
+  }
+}
+
+/* リッチエディタ本文（お知らせ詳細）の最低限のタイポ */
+.rich-text {
+  @apply leading-relaxed;
+}
+.rich-text h2 {
+  @apply mt-10 mb-4 text-xl font-bold text-accent;
+}
+.rich-text h3 {
+  @apply mt-8 mb-3 text-lg font-bold;
+}
+.rich-text p {
+  @apply my-4;
+}
+.rich-text a {
+  @apply text-accent underline underline-offset-4;
+}
+.rich-text ul {
+  @apply my-4 list-disc pl-6;
+}
+.rich-text ol {
+  @apply my-4 list-decimal pl-6;
+}
+.rich-text img {
+  @apply my-6 h-auto max-w-full rounded;
+}

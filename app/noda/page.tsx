@@ -14,6 +14,7 @@ export default function NodaPage() {
     <>
       <Section>
         <SectionHeading
+          eyebrow="Noda"
           title="野田小学校スタジオ"
           lead="廃校の教室をそのまま活かした、ノスタルジックな撮影空間。コスプレ・ポートレート撮影に。"
         />
@@ -42,7 +43,7 @@ export default function NodaPage() {
       </Section>
 
       {/* 閉館予告（控えめに1ブロック） */}
-      <Section className="bg-offwhite">
+      <Section muted>
         <div className="rounded-lg border border-ink/10 bg-base p-6 text-sm leading-relaxed text-ink/70">
           <p className="font-bold text-ink">営業終了のお知らせ</p>
           <p className="mt-2">

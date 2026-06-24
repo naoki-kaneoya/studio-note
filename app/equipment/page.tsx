@@ -16,6 +16,7 @@ export default async function EquipmentPage() {
   return (
     <Section>
       <SectionHeading
+        eyebrow="Equipment"
         title="機材"
         lead="背景紙以外の機材はすべて無料。使い慣れた機材の持ち込みもOK。"
       />

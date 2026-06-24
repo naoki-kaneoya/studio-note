@@ -16,6 +16,7 @@ export default async function GalleryPage() {
   return (
     <Section>
       <SectionHeading
+        eyebrow="Gallery"
         title="ギャラリー"
         lead="Studio note で撮影された作例と、スタジオの空間。"
       />

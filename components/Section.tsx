@@ -2,44 +2,77 @@ import type { ReactNode } from "react";
 
 type SectionProps = {
   children: ReactNode;
-  /** 黒マット背景（ビジュアルセクション用） */
+  /** 黒マット背景（必要時のみ。基本は白〜オフホワイト） */
   dark?: boolean;
+  /** オフホワイト背景でリズムを作る */
+  muted?: boolean;
   id?: string;
   className?: string;
 };
 
-/** 共通セクション枠。白＝情報、黒マット＝ビジュアルの対比をここで担保。 */
-export function Section({ children, dark, id, className = "" }: SectionProps) {
+/** 共通セクション枠。明るい白基調・広めの余白。 */
+export function Section({
+  children,
+  dark,
+  muted,
+  id,
+  className = "",
+}: SectionProps) {
+  const bg = dark
+    ? "bg-matte text-white"
+    : muted
+      ? "bg-offwhite text-ink"
+      : "bg-base text-ink";
   return (
-    <section
-      id={id}
-      className={`${dark ? "bg-matte text-white" : "bg-base text-ink"} ${className}`}
-    >
-      <div className="mx-auto max-w-content px-5 py-16 md:py-24">{children}</div>
+    <section id={id} className={`${bg} ${className}`}>
+      <div className="mx-auto max-w-content px-5 py-20 md:px-8 md:py-28">
+        {children}
+      </div>
     </section>
   );
 }
 
 type HeadingProps = {
+  /** 欧文の小見出し（例 CONCEPT / POINT / GALLERY） */
+  eyebrow?: string;
   title: string;
   lead?: string;
   dark?: boolean;
+  /** 中央寄せ */
+  center?: boolean;
 };
 
-export function SectionHeading({ title, lead, dark }: HeadingProps) {
+export function SectionHeading({
+  eyebrow,
+  title,
+  lead,
+  dark,
+  center,
+}: HeadingProps) {
   return (
-    <header className="mb-10 max-w-3xl">
+    <header
+      className={`mb-12 max-w-3xl ${center ? "mx-auto text-center" : ""}`}
+    >
+      {eyebrow && (
+        <p
+          className={`mb-4 text-xs font-semibold uppercase tracking-[0.25em] ${
+            dark ? "text-white/60" : "text-accent"
+          }`}
+        >
+          {eyebrow}
+        </p>
+      )}
       <h2
-        className={`text-2xl font-bold leading-snug md:text-3xl ${
-          dark ? "text-white" : "text-accent"
+        className={`text-[1.75rem] font-bold leading-tight tracking-tight md:text-4xl ${
+          dark ? "text-white" : "text-ink"
         }`}
       >
         {title}
       </h2>
       {lead && (
         <p
-          className={`mt-4 leading-relaxed ${
-            dark ? "text-white/80" : "text-ink/80"
+          className={`mt-5 leading-loose ${
+            dark ? "text-white/75" : "text-ink/70"
           }`}
         >
           {lead}

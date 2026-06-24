@@ -38,7 +38,7 @@ export default async function StudioPage() {
     <>
       {/* ① スペック */}
       <Section>
-        <SectionHeading title="スタジオ詳細" />
+        <SectionHeading eyebrow="Studio" title="スタジオ詳細" />
         <dl className="grid gap-px overflow-hidden rounded-lg border border-ink/10 bg-ink/10 sm:grid-cols-2">
           {SPECS.map(([k, v]) => (
             <div key={k} className="flex gap-4 bg-base p-5">
@@ -52,8 +52,9 @@ export default async function StudioPage() {
       </Section>
 
       {/* ② 空間ギャラリー */}
-      <Section className="bg-offwhite">
+      <Section muted>
         <SectionHeading
+          eyebrow="Space"
           title="空間ギャラリー"
           lead="白スタジオの全景・コーナー・着替え／メイクスペース。"
         />
@@ -63,6 +64,7 @@ export default async function StudioPage() {
       {/* ③ 主要機材（抜粋） */}
       <Section>
         <SectionHeading
+          eyebrow="Equipment"
           title="主要機材（抜粋）"
           lead="定常光・ストロボからソフトボックス、テザー環境まで完備。背景紙以外の機材はすべて無料、持ち込みもOK。"
         />
@@ -82,8 +84,9 @@ export default async function StudioPage() {
       </Section>
 
       {/* ④ 利用ルール・注意事項 */}
-      <Section className="bg-offwhite">
+      <Section muted>
         <SectionHeading
+          eyebrow="Rules"
           title="利用ルール・注意事項"
           lead="テナントビル内のため、他テナント・近隣への配慮をお願いしています。"
         />
@@ -104,7 +107,7 @@ export default async function StudioPage() {
 
       {/* ⑤ アクセス */}
       <Section id="access">
-        <SectionHeading title="アクセス" />
+        <SectionHeading eyebrow="Access" title="アクセス" />
         <div className="grid gap-8 md:grid-cols-2">
           <div className="space-y-3 text-sm leading-relaxed text-ink/80">
             <p>{SITE.address.postalLine}</p>

@@ -35,6 +35,7 @@ export default function ShootingPage() {
     <>
       <Section>
         <SectionHeading
+          eyebrow="Shooting"
           title="撮影を依頼したい方へ"
           lead="Studio note を運営する撮影チームが、商品撮影から映像まで、事業者さまの撮影を承っています。完全遮光のスタジオ環境を活かした物撮りから、ロケを含む映像制作まで対応。スタジオ撮影・出張撮影どちらにも対応します。"
         />
@@ -79,8 +80,8 @@ export default function ShootingPage() {
         </div>
       </Section>
 
-      <Section className="bg-offwhite">
-        <SectionHeading title="お問い合わせフォーム" />
+      <Section muted>
+        <SectionHeading eyebrow="Contact" title="お問い合わせフォーム" />
         <div className="max-w-3xl">
           <ContactForm />
         </div>

@@ -14,6 +14,7 @@ export default function PricePage() {
   return (
     <Section>
       <SectionHeading
+        eyebrow="Price"
         title="料金"
         lead="1時間 ¥4,400〜（税込）／利用時間 10:00–20:00。平日・土日祝で料金が変わります。最新の空き状況と確定価格はUpnowでご確認ください。"
       />

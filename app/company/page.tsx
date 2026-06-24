@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 export default function CompanyPage() {
   return (
     <Section>
-      <SectionHeading title="運営者情報" />
+      <SectionHeading eyebrow="Company" title="運営者情報" />
       <dl className="max-w-2xl space-y-px overflow-hidden rounded-lg border border-ink/10 bg-ink/10">
         <div className="flex flex-col gap-1 bg-base p-5 sm:flex-row sm:gap-6">
           <dt className="w-28 shrink-0 text-sm font-bold text-accent">

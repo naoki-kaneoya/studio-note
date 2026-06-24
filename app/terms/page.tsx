@@ -28,7 +28,7 @@ const SECTIONS = [
 export default function TermsPage() {
   return (
     <Section>
-      <SectionHeading title="利用規約・キャンセルポリシー" />
+      <SectionHeading eyebrow="Terms" title="利用規約・キャンセルポリシー" />
       <div className="max-w-3xl space-y-8">
         {SECTIONS.map((s) => (
           <div key={s.heading}>

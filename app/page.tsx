@@ -80,10 +80,11 @@ export default async function HomePage() {
       {/* 02 3つの強み */}
       <Section>
         <SectionHeading
+          eyebrow="Point"
           title="Studio note が選ばれている理由"
           lead="自然光は待つしかない。でも完全遮光なら、光は自分で組み立てられる。Studio note が選ばれている理由は3つ。"
         />
-        <div className="grid gap-5 md:grid-cols-3">
+        <div className="grid gap-x-8 gap-y-12 md:grid-cols-3">
           {POINTS.map((p) => (
             <PointCard key={p.no} {...p} />
           ))}
@@ -91,13 +92,13 @@ export default async function HomePage() {
       </Section>
 
       {/* 03 完全遮光でできること */}
-      <Section dark>
+      <Section muted>
         <SectionHeading
-          dark
+          eyebrow="Works"
           title="完全遮光でできること"
           lead="光を自分で組めるから、用途を選ばない。Studio note の使われ方の一例。"
         />
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-2 gap-5 md:gap-7 lg:grid-cols-4">
           {USE_CASES.map((u) => (
             <UseCaseTile key={u.title} {...u} />
           ))}
@@ -107,6 +108,7 @@ export default async function HomePage() {
       {/* 04 作例 */}
       <Section>
         <SectionHeading
+          eyebrow="Gallery"
           title="作例"
           lead="実際にこのスタジオで撮影された一枚を。"
         />
@@ -122,8 +124,8 @@ export default async function HomePage() {
       </Section>
 
       {/* 05 料金 */}
-      <Section className="bg-offwhite">
-        <SectionHeading title="料金" />
+      <Section muted>
+        <SectionHeading eyebrow="Price" title="料金" />
         <PriceSummary />
         <div className="mt-7 flex flex-wrap gap-4">
           <Link
@@ -138,7 +140,7 @@ export default async function HomePage() {
 
       {/* 06 ご予約の流れ */}
       <Section>
-        <SectionHeading title="ご予約の流れ" />
+        <SectionHeading eyebrow="Flow" title="ご予約の流れ" />
         <ol className="grid gap-4 md:grid-cols-4">
           {STEPS.map((s, i) => (
             <li
@@ -159,8 +161,8 @@ export default async function HomePage() {
       </Section>
 
       {/* 07 Studio note について */}
-      <Section className="bg-offwhite">
-        <SectionHeading title="Studio note について" />
+      <Section muted>
+        <SectionHeading eyebrow="About" title="Studio note について" />
         <div className="max-w-3xl space-y-4 leading-relaxed text-ink/80">
           <p>
             「機材無料と書いてあるのにプロ仕様じゃない」——そんなストレスを解消したくて、運営2社のフォトグラファーが、プロに必要な機材を全部詰めて設計したスタジオです。完全遮光で光を自由に組める環境を、駅30秒の立地で。
@@ -182,7 +184,7 @@ export default async function HomePage() {
 
       {/* 08 お知らせ */}
       <Section>
-        <SectionHeading title="お知らせ" />
+        <SectionHeading eyebrow="News" title="お知らせ" />
         <NewsList items={news} />
         <div className="mt-8">
           <Link
@@ -195,8 +197,8 @@ export default async function HomePage() {
       </Section>
 
       {/* 09 アクセス */}
-      <Section id="access" className="bg-offwhite">
-        <SectionHeading title="アクセス" />
+      <Section id="access" muted>
+        <SectionHeading eyebrow="Access" title="アクセス" />
         <div className="grid gap-8 md:grid-cols-2">
           <div className="space-y-3 text-sm leading-relaxed text-ink/80">
             <p>{SITE.address.postalLine}</p>

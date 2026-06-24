@@ -12,7 +12,7 @@ export default async function NewsPage() {
   const news = await getNewsList();
   return (
     <Section>
-      <SectionHeading title="お知らせ" />
+      <SectionHeading eyebrow="News" title="お知らせ" />
       <NewsList items={news} />
     </Section>
   );

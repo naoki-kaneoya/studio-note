@@ -1,50 +1,125 @@
-import Link from "next/link";
+import Image from "next/image";
 import BookingButton from "@/components/BookingButton";
 
 /**
- * トップのヒーロー。大きな写真を主役にした明るい構成。
- * 動画は /public/hero.mp4、ポスターは /public/hero-poster.jpg を想定。
- * 動画/ポスター未配置でも bg-matte でレイアウトは成立する。
+ * トップのヒーロー。全面写真＋スクロール連動のゆるいパン、中央寄せのテキスト。
+ * 画像は /public/hero-poster.jpg を使用（実素材が用意でき次第差し替え）。
  */
 export default function Hero() {
   return (
-    <section className="relative flex min-h-[92vh] items-end overflow-hidden bg-matte text-white">
-      <video
-        className="absolute inset-0 h-full w-full object-cover"
-        autoPlay
-        muted
-        loop
-        playsInline
-        preload="none"
-        poster="/hero-poster.jpg"
+    <section
+      style={{
+        position: "relative",
+        minHeight: "clamp(560px,88vh,880px)",
+        overflow: "hidden",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        textAlign: "center",
+        background: "#111111",
+      }}
+    >
+      {/* 背景画像（スクロールでゆっくりパン） */}
+      <div
+        style={{
+          position: "absolute",
+          inset: 0,
+          animation: "heroPan linear both",
+          animationTimeline: "scroll()",
+          animationRange: "0% 100%",
+        }}
       >
-        <source src="/hero.mp4" type="video/mp4" />
-      </video>
-      {/* テキスト可読性のためのグラデ（下〜左のみ・写真は明るく残す） */}
-      <div className="absolute inset-0 bg-gradient-to-t from-matte/80 via-matte/20 to-transparent" />
-      <div className="absolute inset-0 bg-gradient-to-r from-matte/40 to-transparent" />
+        <Image
+          src="/hero-poster.jpg"
+          alt="Studio note の白スタジオ"
+          fill
+          priority
+          sizes="100vw"
+          style={{ objectFit: "cover" }}
+        />
+      </div>
 
-      <div className="relative mx-auto w-full max-w-content px-5 pb-20 pt-32 md:px-8 md:pb-28">
-        <p className="mb-5 text-xs font-semibold uppercase tracking-[0.3em] text-white/80">
+      {/* テキスト可読性のためのグラデ */}
+      <div
+        style={{
+          position: "absolute",
+          inset: 0,
+          zIndex: 1,
+          pointerEvents: "none",
+          background:
+            "linear-gradient(to top, rgba(17,17,17,0.62), rgba(17,17,17,0.08) 46%, rgba(17,17,17,0) 72%), linear-gradient(to right, rgba(17,17,17,0.4), rgba(17,17,17,0) 56%)",
+        }}
+      />
+
+      <div
+        className="dc-fadeup"
+        style={{
+          position: "relative",
+          zIndex: 2,
+          width: "100%",
+          maxWidth: 760,
+          margin: "0 auto",
+          padding: "0 clamp(20px,5vw,32px)",
+        }}
+      >
+        <span
+          style={{
+            fontFamily: "Georgia,serif",
+            fontSize: "clamp(11px,1.1vw,13px)",
+            letterSpacing: "0.32em",
+            color: "rgba(255,255,255,0.9)",
+            textTransform: "uppercase",
+          }}
+        >
           Rental Studio — Osaka Shonai
-        </p>
-        <h1 className="text-[2.5rem] font-bold leading-[1.1] tracking-tight md:text-6xl">
+        </span>
+        <h1
+          style={{
+            margin: "22px 0 0",
+            color: "#fff",
+            fontWeight: 700,
+            fontSize: "clamp(34px,6.4vw,76px)",
+            lineHeight: 1.28,
+            letterSpacing: "0.01em",
+            textShadow: "0 2px 30px rgba(0,0,0,0.25)",
+          }}
+        >
           思いどおりの光を、
           <br />
           自分の手で。
         </h1>
-        <p className="mt-7 max-w-2xl text-sm leading-loose text-white/85 md:text-base">
-          外光ゼロの完全遮光スタジオ。NANLITE・Godoxのプロ機材を自由に組んで、
-          時間に縛られず光をつくれる。庄内駅30秒・梅田10分。
+        <p
+          style={{
+            margin: "24px auto 0",
+            maxWidth: 460,
+            color: "rgba(255,255,255,0.92)",
+            fontSize: "clamp(14px,1.4vw,16px)",
+            lineHeight: 1.95,
+          }}
+        >
+          大阪・庄内の完全遮光ホワイトスタジオ。物撮りからポートレート、動画まで、ひと部屋で思いのままに。
         </p>
-        <div className="mt-10 flex flex-wrap gap-4">
-          <BookingButton location="hero" />
-          <Link
-            href="/studio"
-            className="inline-flex items-center justify-center rounded-full border border-white/50 px-7 py-3 text-sm font-bold tracking-wide2 text-white backdrop-blur-sm transition-colors hover:bg-white hover:text-matte"
+        <div
+          style={{
+            display: "flex",
+            flexWrap: "wrap",
+            justifyContent: "center",
+            gap: 14,
+            marginTop: 38,
+          }}
+        >
+          <BookingButton location="hero" label="予約する（Upnow）" />
+          <a
+            href="#works"
+            className="dc-btn"
+            style={{
+              color: "#fff",
+              border: "1px solid rgba(255,255,255,0.65)",
+              backdropFilter: "blur(2px)",
+            }}
           >
             スタジオを見る
-          </Link>
+          </a>
         </div>
       </div>
     </section>

@@ -6,44 +6,177 @@
   --booking-bar-height: 64px;
 }
 
+* {
+  box-sizing: border-box;
+}
+
 html {
   scroll-behavior: smooth;
 }
 
 body {
-  @apply bg-base text-ink antialiased;
+  margin: 0;
+  background: #ffffff;
+  color: #2a2a2a;
+  -webkit-font-smoothing: antialiased;
   font-feature-settings: "palt";
+  overflow-x: hidden;
 }
 
-/* スマホ固定予約バー分の余白（重なり防止） */
+::selection {
+  background: #1a2a40;
+  color: #fff;
+}
+
+input,
+textarea,
+select {
+  font-family: var(--font-noto-sans-jp), system-ui, sans-serif;
+}
+input:focus,
+textarea:focus,
+select:focus {
+  outline: none;
+  border-color: #1a2a40 !important;
+}
+::placeholder {
+  color: #b3b0aa;
+}
+
+/* スマホ固定予約バー分の余白 */
 @media (max-width: 767px) {
   body {
     padding-bottom: var(--booking-bar-height);
   }
 }
 
-/* リッチエディタ本文（お知らせ詳細）の最低限のタイポ */
+/* ===== Claude Design 由来のキーフレーム ===== */
+@keyframes fadeup {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes fadein {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes heroPan {
+  from {
+    transform: scale(1.12) translateY(-2%);
+  }
+  to {
+    transform: scale(1.12) translateY(6%);
+  }
+}
+@keyframes lineGrow {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+/* ===== 再利用ヘルパー ===== */
+.dc-wrap {
+  max-width: 1152px;
+  margin: 0 auto;
+}
+.dc-eyebrow {
+  font-family: Georgia, serif;
+  font-size: 13px;
+  letter-spacing: 0.3em;
+  color: #1a2a40;
+  text-transform: uppercase;
+}
+.dc-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  letter-spacing: 0.12em;
+  text-decoration: none;
+  border-radius: 1px;
+  padding: 16px 38px;
+  border: none;
+  cursor: pointer;
+  transition: opacity 0.2s, background-color 0.2s, color 0.2s;
+}
+.dc-btn-primary {
+  color: #fff;
+  background: #1a2a40;
+}
+.dc-btn-primary:hover {
+  opacity: 0.9;
+}
+.dc-btn-outline {
+  color: #2a2a2a;
+  background: transparent;
+  border: 1px solid rgba(42, 42, 42, 0.3);
+}
+.dc-btn-outline:hover {
+  background: #2a2a2a;
+  color: #fff;
+}
+/* 初期表示アニメ（ファーストビュー用） */
+.dc-fadeup {
+  animation: fadeup 0.9s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+/* スクロールで入ってくる要素 */
+.dc-reveal {
+  animation: fadeup 0.9s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation-timeline: view();
+  animation-range: entry 0% cover 30%;
+}
+/* スクロール対応していないブラウザは即表示 */
+@supports not (animation-timeline: view()) {
+  .dc-reveal {
+    animation: none;
+  }
+}
+
+/* リッチエディタ本文（お知らせ詳細） */
 .rich-text {
-  @apply leading-relaxed;
+  font-size: 16px;
+  line-height: 2.05;
+  color: #3a3a3a;
 }
 .rich-text h2 {
-  @apply mt-10 mb-4 text-xl font-bold text-accent;
+  margin: 36px 0 0;
+  font-weight: 700;
+  font-size: 19px;
+  line-height: 1.6;
 }
 .rich-text h3 {
-  @apply mt-8 mb-3 text-lg font-bold;
+  margin: 28px 0 0;
+  font-weight: 700;
+  font-size: 17px;
 }
 .rich-text p {
-  @apply my-4;
+  margin: 12px 0 0;
 }
 .rich-text a {
-  @apply text-accent underline underline-offset-4;
+  color: #1a2a40;
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
-.rich-text ul {
-  @apply my-4 list-disc pl-6;
-}
+.rich-text ul,
 .rich-text ol {
-  @apply my-4 list-decimal pl-6;
+  margin: 14px 0 0;
+  padding-left: 1.4em;
 }
 .rich-text img {
-  @apply my-6 h-auto max-w-full rounded;
+  margin: 20px 0 0;
+  max-width: 100%;
+  height: auto;
+  border-radius: 2px;
 }

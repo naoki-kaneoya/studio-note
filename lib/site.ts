@@ -27,14 +27,14 @@ export const UPNOW_NODA_URL =
 
 export const GA_ID = process.env.NEXT_PUBLIC_GA_ID || "";
 
-/** ヘッダー／フッターのナビゲーション */
+/** ヘッダー／メニューのナビゲーション（欧文＋和文） */
 export const NAV_LINKS = [
-  { href: "/studio", label: "スタジオ詳細" },
-  { href: "/equipment", label: "機材" },
-  { href: "/price", label: "料金" },
-  { href: "/gallery", label: "ギャラリー" },
-  { href: "/shooting", label: "撮影依頼" },
-  { href: "/#access", label: "アクセス" },
+  { href: "/studio", en: "Studio", ja: "スタジオ" },
+  { href: "/equipment", en: "Equipment", ja: "機材" },
+  { href: "/gallery", en: "Gallery", ja: "ギャラリー" },
+  { href: "/price", en: "Price", ja: "料金" },
+  { href: "/shooting", en: "Shooting", ja: "撮影依頼" },
+  { href: "/news", en: "News", ja: "お知らせ" },
 ] as const;
 
 export const FOOTER_LINKS = [

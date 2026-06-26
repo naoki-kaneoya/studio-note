@@ -1,43 +1,122 @@
 import Link from "next/link";
-import { FOOTER_LINKS, SITE } from "@/lib/site";
+import { SITE } from "@/lib/site";
+
+const MENU = [
+  { href: "/studio", label: "スタジオ" },
+  { href: "/price", label: "料金" },
+  { href: "/shooting", label: "撮影依頼" },
+  { href: "/#access", label: "アクセス" },
+  { href: "/news", label: "お知らせ" },
+  { href: "/company", label: "運営者情報" },
+  { href: "/terms", label: "利用規約" },
+];
+
+const colLabel: React.CSSProperties = {
+  fontFamily: "Georgia,serif",
+  fontSize: 11,
+  letterSpacing: "0.24em",
+  color: "#1A2A40",
+};
 
 export default function Footer() {
   return (
-    <footer className="border-t border-ink/10 bg-base text-ink">
-      <div className="mx-auto max-w-content px-5 py-16 md:px-8 md:py-20">
-        <div className="grid gap-12 md:grid-cols-[1.2fr_1fr]">
-          <div>
-            <p className="text-xl font-bold tracking-wide2">Studio note</p>
-            <p className="mt-2 text-xs uppercase tracking-[0.25em] text-ink/40">
-              Rental Studio — Osaka Shonai
-            </p>
-            <p className="mt-6 text-sm leading-loose text-ink/70">
-              {SITE.address.postalLine}
-              <br />
-              {SITE.address.access} ／ 利用時間 {SITE.hours}
-            </p>
-            <p className="mt-4 text-xs text-ink/50">
-              運営：{SITE.operators.join("／")}
-            </p>
-          </div>
+    <footer
+      style={{
+        background: "#FFFFFF",
+        borderTop: "1px solid rgba(42,42,42,0.08)",
+        padding:
+          "clamp(56px,7vw,88px) clamp(20px,5vw,32px) clamp(40px,5vw,56px)",
+      }}
+    >
+      <div
+        className="dc-wrap"
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))",
+          gap: 40,
+        }}
+      >
+        <div>
+          <span style={{ fontFamily: "Georgia,serif", fontSize: 22 }}>Studio note</span>
+          <p style={{ margin: "16px 0 0", fontSize: 13, lineHeight: 1.9, color: "#777" }}>
+            大阪・庄内の完全遮光
+            <br />
+            レンタルホワイトスタジオ
+          </p>
+        </div>
 
-          <nav className="grid grid-cols-2 gap-x-6 gap-y-1 text-sm">
-            {FOOTER_LINKS.map((l) => (
+        <div>
+          <span style={colLabel}>MENU</span>
+          <div style={{ display: "flex", flexDirection: "column", gap: 11, marginTop: 18 }}>
+            {MENU.map((m) => (
               <Link
-                key={l.href}
-                href={l.href}
-                className="py-1.5 text-ink/70 transition-colors hover:text-accent"
+                key={m.label}
+                href={m.href}
+                style={{ fontSize: 14, textDecoration: "none", color: "#2A2A2A" }}
               >
-                {l.label}
+                {m.label}
               </Link>
             ))}
-          </nav>
+          </div>
         </div>
 
-        <div className="mt-14 flex flex-col gap-3 border-t border-ink/10 pt-6 text-xs text-ink/45 sm:flex-row sm:items-center sm:justify-between">
-          <p>他プラットフォームでもご予約いただけます（スペースマーケット等）。</p>
-          <p>© {SITE.name}. All rights reserved.</p>
+        <div>
+          <span style={colLabel}>INFO</span>
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: 11,
+              marginTop: 18,
+              fontSize: 14,
+              color: "#555",
+              lineHeight: 1.7,
+            }}
+          >
+            <span>大阪府豊中市庄内西町3-1-5</span>
+            <span>サンパティオビル3階</span>
+            <span>10:00 – 20:00</span>
+          </div>
         </div>
+
+        <div>
+          <span style={colLabel}>OPERATED BY</span>
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: 11,
+              marginTop: 18,
+              fontSize: 14,
+              color: "#555",
+              lineHeight: 1.7,
+            }}
+          >
+            {SITE.operators.map((o) => (
+              <span key={o}>{o}</span>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div
+        className="dc-wrap"
+        style={{
+          margin: "clamp(40px,5vw,64px) auto 0",
+          paddingTop: 24,
+          borderTop: "1px solid rgba(42,42,42,0.08)",
+          display: "flex",
+          justifyContent: "space-between",
+          flexWrap: "wrap",
+          gap: 12,
+        }}
+      >
+        <span style={{ fontFamily: "Georgia,serif", fontSize: 11, letterSpacing: "0.18em", color: "#999" }}>
+          © Studio note
+        </span>
+        <span style={{ fontFamily: "Georgia,serif", fontSize: 11, letterSpacing: "0.18em", color: "#999" }}>
+          Osaka Shonai
+        </span>
       </div>
     </footer>
   );

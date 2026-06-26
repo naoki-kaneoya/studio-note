@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Section } from "@/components/Section";
 
 export const metadata: Metadata = {
   title: "お問い合わせありがとうございます",
@@ -9,23 +8,26 @@ export const metadata: Metadata = {
 
 export default function ThanksPage() {
   return (
-    <Section>
-      <div className="mx-auto max-w-2xl py-10 text-center">
-        <h1 className="text-2xl font-bold text-accent md:text-3xl">
-          お問い合わせありがとうございます。
+    <main style={{ minHeight: "60vh", display: "flex", alignItems: "center", justifyContent: "center", padding: "clamp(48px,8vw,96px) clamp(20px,5vw,32px)" }}>
+      <div className="dc-fadeup" style={{ maxWidth: 560, textAlign: "center" }}>
+        <span style={{ fontFamily: "Georgia,serif", fontSize: 13, letterSpacing: "0.3em", color: "#1A2A40", textTransform: "uppercase" }}>
+          Thank you
+        </span>
+        <h1 style={{ margin: "20px 0 0", fontWeight: 700, fontSize: "clamp(28px,4.5vw,46px)", lineHeight: 1.4, letterSpacing: "-0.01em" }}>
+          送信が完了しました。
         </h1>
-        <p className="mt-6 leading-relaxed text-ink/80">
-          内容を確認のうえ、担当者よりご連絡いたします。
+        <p style={{ margin: "24px 0 0", color: "#555", fontSize: 16, lineHeight: 2 }}>
+          お問い合わせいただきありがとうございます。
+          <br />
+          内容を確認のうえ、担当者よりご返信します。
+          <br />
+          お急ぎの場合は公式LINEよりご連絡ください。
         </p>
-        <div className="mt-10">
-          <Link
-            href="/"
-            className="inline-flex items-center justify-center rounded-full border border-accent px-8 py-3 text-sm font-bold tracking-wide2 text-accent transition-colors hover:bg-accent hover:text-white"
-          >
-            トップへ戻る
-          </Link>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 14, justifyContent: "center", marginTop: 40 }}>
+          <Link href="/" className="dc-btn dc-btn-primary">トップへ戻る</Link>
+          <Link href="/studio" className="dc-btn dc-btn-outline">スタジオを見る</Link>
         </div>
       </div>
-    </Section>
+    </main>
   );
 }

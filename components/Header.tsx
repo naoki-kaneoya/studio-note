@@ -1,77 +1,179 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
+import { useState } from "react";
 import { NAV_LINKS } from "@/lib/site";
 import BookingButton from "@/components/BookingButton";
 
 export default function Header() {
-  const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
+  const pathname = usePathname();
 
-  useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 8);
-    onScroll();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
+  const isActive = (href: string) =>
+    href === "/" ? pathname === "/" : pathname.startsWith(href);
 
   return (
-    <header
-      className={`sticky top-0 z-50 transition-colors ${
-        scrolled ? "bg-base/95 shadow-sm backdrop-blur" : "bg-base"
-      }`}
-    >
-      <div className="mx-auto flex max-w-content items-center justify-between px-5 py-4">
-        <Link href="/" className="text-lg font-bold tracking-wide2">
-          Studio note
+    <>
+      <header
+        style={{
+          position: "sticky",
+          top: 0,
+          zIndex: 50,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          height: 72,
+          padding: "0 clamp(20px,5vw,32px)",
+          background: "rgba(255,255,255,0.82)",
+          backdropFilter: "blur(14px)",
+          WebkitBackdropFilter: "blur(14px)",
+          borderBottom: "1px solid rgba(42,42,42,0.08)",
+        }}
+      >
+        <Link
+          href="/"
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            lineHeight: 1,
+            textDecoration: "none",
+            color: "#2A2A2A",
+          }}
+        >
+          <span
+            style={{ fontFamily: "Georgia,serif", fontSize: 21, letterSpacing: "0.02em" }}
+          >
+            Studio note
+          </span>
+          <span
+            style={{
+              fontFamily: "Georgia,serif",
+              fontSize: 9,
+              letterSpacing: "0.34em",
+              color: "#1A2A40",
+              marginTop: 5,
+              textTransform: "uppercase",
+            }}
+          >
+            Rental Studio Osaka
+          </span>
         </Link>
 
-        <nav className="hidden items-center gap-6 lg:flex">
+        {/* デスクトップナビ */}
+        <nav className="hidden items-center lg:flex" style={{ gap: "clamp(18px,2.4vw,38px)" }}>
           {NAV_LINKS.map((l) => (
             <Link
               key={l.href}
               href={l.href}
-              className="text-sm text-ink/80 transition-colors hover:text-accent"
+              style={{
+                fontSize: 13,
+                letterSpacing: "0.04em",
+                textDecoration: "none",
+                color: isActive(l.href) ? "#1A2A40" : "#2A2A2A",
+                fontWeight: isActive(l.href) ? 500 : 400,
+              }}
             >
-              {l.label}
+              {l.en}
             </Link>
           ))}
+          <BookingButton location="header" size="header" />
         </nav>
 
-        <div className="flex items-center gap-3">
-          <div className="hidden sm:block">
-            <BookingButton location="header" />
-          </div>
-          <button
-            type="button"
-            aria-label="メニュー"
-            aria-expanded={open}
-            onClick={() => setOpen((v) => !v)}
-            className="flex h-10 w-10 items-center justify-center lg:hidden"
-          >
-            <span className="text-2xl leading-none">{open ? "×" : "≡"}</span>
-          </button>
-        </div>
-      </div>
+        {/* モバイル ハンバーガー */}
+        <button
+          type="button"
+          aria-label="メニュー"
+          aria-expanded={open}
+          onClick={() => setOpen(true)}
+          className="flex flex-col gap-[5px] lg:hidden"
+          style={{ background: "none", border: "none", cursor: "pointer", padding: 8 }}
+        >
+          <span style={{ display: "block", width: 24, height: 1.5, background: "#2A2A2A" }} />
+          <span style={{ display: "block", width: 24, height: 1.5, background: "#2A2A2A" }} />
+        </button>
+      </header>
 
+      {/* フルスクリーンメニュー */}
       {open && (
-        <nav className="border-t border-ink/10 bg-base lg:hidden">
-          <ul className="mx-auto max-w-content px-5 py-2">
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 60,
+            background: "#FFFFFF",
+            padding: "28px clamp(20px,6vw,40px)",
+            display: "flex",
+            flexDirection: "column",
+            animation: "fadein .3s ease both",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              height: 44,
+            }}
+          >
+            <span style={{ fontFamily: "Georgia,serif", fontSize: 21 }}>Studio note</span>
+            <button
+              type="button"
+              aria-label="閉じる"
+              onClick={() => setOpen(false)}
+              style={{
+                background: "none",
+                border: "none",
+                fontSize: 26,
+                lineHeight: 1,
+                cursor: "pointer",
+                color: "#2A2A2A",
+              }}
+            >
+              ×
+            </button>
+          </div>
+          <nav style={{ display: "flex", flexDirection: "column", gap: 4, marginTop: 48 }}>
             {NAV_LINKS.map((l) => (
-              <li key={l.href}>
-                <Link
-                  href={l.href}
-                  onClick={() => setOpen(false)}
-                  className="block py-3 text-ink/80"
+              <Link
+                key={l.href}
+                href={l.href}
+                onClick={() => setOpen(false)}
+                style={{
+                  display: "flex",
+                  alignItems: "baseline",
+                  justifyContent: "space-between",
+                  padding: "18px 0",
+                  borderBottom: "1px solid rgba(42,42,42,0.1)",
+                  textDecoration: "none",
+                  color: isActive(l.href) ? "#1A2A40" : "#2A2A2A",
+                  fontSize: 20,
+                }}
+              >
+                {l.ja}
+                <span
+                  style={{
+                    fontFamily: "Georgia,serif",
+                    fontSize: 11,
+                    letterSpacing: "0.25em",
+                    color: "#1A2A40",
+                  }}
                 >
-                  {l.label}
-                </Link>
-              </li>
+                  {l.en.toUpperCase()}
+                </span>
+              </Link>
             ))}
-          </ul>
-        </nav>
+          </nav>
+          <div style={{ marginTop: "auto" }}>
+            <BookingButton
+              location="menu"
+              label="予約する（Upnow）"
+              className="w-full"
+              style={{ width: "100%", padding: 18 }}
+            />
+          </div>
+        </div>
       )}
-    </header>
+    </>
   );
 }

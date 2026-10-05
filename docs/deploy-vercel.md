@@ -34,11 +34,14 @@ Google Apps Scriptの準備は [booking-setup.md](booking-setup.md) を参照。
 | `CONTACT_EMAIL` | `kaneoya.naoki@gmail.com` | ドメイン認証後に本来の受信先へ変更 |
 | `NEXT_PUBLIC_UPNOW_STUDIO_URL` | `https://upnow.jp/note/Studio-note` | |
 | `NEXT_PUBLIC_UPNOW_NODA_URL` | `https://upnow.jp/note/noda` | |
-| `NEXT_PUBLIC_SITE_URL` | `https://studio-note.vercel.app` | 確定後、独自ドメインに変更 |
+| `NEXT_PUBLIC_SITE_URL` | `https://<実際に割り当てられたドメイン>` | VercelのDomainsで確認する |
 | `NEXT_PUBLIC_GA_ID` | （空でOK） | スタジオ専用GAの測定IDを後で設定 |
 
 > `NEXT_PUBLIC_SITE_URL` は最初Vercelの割当URL（`https://<プロジェクト名>.vercel.app`）でOK。
 > 正確なURLはデプロイ後に確認して設定し直す。
+
+今回の既存プロジェクトは [naoki-kaneoyas-projects/studio-note](https://vercel.com/naoki-kaneoyas-projects/studio-note)。GitHubのVercelチェックと過去の本番デプロイから確認済み。
+`studio-note.vercel.app` は別のサイトが使用しているため、このプロジェクトの公開URLとして使わない。
 
 ## 3. Deploy
 - **Deploy** を押す → ビルド〜公開（数分）

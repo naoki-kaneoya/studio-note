@@ -9,6 +9,7 @@ import BookingButton from "@/components/BookingButton";
 export default function Header() {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
+  const isBookingPage = pathname === "/book" || pathname.startsWith("/noda/book");
 
   const isActive = (href: string) =>
     href === "/" ? pathname === "/" : pathname.startsWith(href);
@@ -77,7 +78,7 @@ export default function Header() {
               {l.en}
             </Link>
           ))}
-          <BookingButton location="header" size="header" />
+          {!isBookingPage && <BookingButton location="header" size="header" />}
         </nav>
 
         {/* モバイル ハンバーガー */}
@@ -164,14 +165,14 @@ export default function Header() {
               </Link>
             ))}
           </nav>
-          <div style={{ marginTop: "auto" }}>
+          {!isBookingPage && <div style={{ marginTop: "auto" }}>
             <BookingButton
               location="menu"
               label="予約する（Upnow）"
               className="w-full"
               style={{ width: "100%", padding: 18 }}
             />
-          </div>
+          </div>}
         </div>
       )}
     </>

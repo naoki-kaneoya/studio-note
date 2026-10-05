@@ -36,8 +36,9 @@ export default function NodaPage() {
           <p style={{ margin: "22px 0 0", maxWidth: 600, color: "#555", fontSize: 16, lineHeight: 1.95 }}>
             廃校となった小学校をそのまま活かした、独特の趣をもつ撮影スタジオ。教室や廊下など、街なかのスタジオにはないロケーションで撮影いただけます。コスプレ・ポートレート撮影に。
           </p>
-          <div style={{ marginTop: 28 }}>
-            <BookingButton href={UPNOW_NODA_URL} location="noda" label="予約する（Upnow）" />
+          <div style={{ marginTop: 28, display: "flex", flexWrap: "wrap", gap: 14 }}>
+            <Link href="/book?resource=noda" className="dc-btn dc-btn-primary">直接予約する</Link>
+            <BookingButton href={UPNOW_NODA_URL} location="noda" label="一般の予約（Upnow）" variant="outline" />
           </div>
         </div>
       </section>

@@ -1,18 +1,21 @@
 # Studio note サイト
 
 完全遮光・白スタジオ「Studio note」（大阪・庄内）のレンタル＆撮影依頼サイト。
-予約は外部サービス **Upnow** へ送客し、サイト自体は予約機能を持たない。
+一般の予約は外部サービス **Upnow** へ送客する。
+Studio note（庄内）と野田小学校には、豊中ベンチャーと関連グループ向けの直接予約フォーム（`/book`）を用意。
+Googleカレンダーの空き時間を表示し、選んだ時間で予約を登録して、入力されたメールアドレスへカレンダー招待を送る。
+公開したサイトを各自のスマホやPCから利用する。利用者の端末には設定やインストールは不要。
 
 ## 技術スタック
-- Next.js 14（App Router）+ TypeScript
+- Next.js 14.2.35（App Router）+ TypeScript
 - Tailwind CSS v3.4（デザイントークンは `tailwind.config.ts`）
 - microCMS（`microcms-js-sdk`）
 - Resend（フォーム送信）
 - Vercel ホスティング前提
 
-## セットアップ
+## 開発者向けセットアップ
 ```bash
-npm install
+npm ci
 cp .env.example .env.local   # 値を埋める
 npm run dev                  # http://localhost:3000
 ```
@@ -29,8 +32,28 @@ npm run dev                  # http://localhost:3000
 | `NEXT_PUBLIC_UPNOW_NODA_URL` | 野田小学校予約リンク |
 | `NEXT_PUBLIC_SITE_URL` | 本番URL（sitemap/構造化データ用） |
 | `NEXT_PUBLIC_GA_ID` | GA4 測定ID |
+| `GOOGLE_BOOKING_SCRIPT_URL` | 空き表示・直接予約用のApps Script Webアプリの `/exec` URL |
+| `GOOGLE_BOOKING_SECRET` | Apps Scriptの `BOOKING_BACKEND_SECRET` と同じサーバー間通信の秘密値 |
 
 > 環境変数が未設定でもビルド・表示は壊れない設計（CMSは空配列、フォームは設定未完了エラーを返す）。
+
+## 直接予約
+
+`/book` で施設と日付を選ぶと、その日の空き時間と予約済み時間を確認できる。空き時間を選んで利用時間を調整し、名前とメールアドレスを入力して予約する。空き状況は1分ごとに更新し、手動でも更新できる。
+予約URLの共有だけで利用でき、ログインや合言葉は不要。予定の件名・予約者の個人情報は空き画面に表示しない。
+Google Apps Script側で予約を順番に処理し、施設ごとの既存の共通Googleカレンダーに重なる予定があれば受け付けない。別の施設同士は同じ時間にも予約可能。
+通信エラー後は入力内容を固定し、同じ送信IDで「予約結果を再確認する」。登録済みで表示上の空き枠が消えても再確認でき、予定と招待は重複作成しない。
+
+接続先が未設定の場合はフォームに「予約受付の準備中」と表示し、登録は行わない。
+接続手順と外部予約サイトとの同期条件は [docs/booking-setup.md](docs/booking-setup.md) を参照。
+公開時の環境変数はVercelの **対象プロジェクト → Settings → Environment Variables** に登録し、再デプロイする。Codexのクラウド環境の設定とは別。公開手順は [docs/deploy-vercel.md](docs/deploy-vercel.md) を参照。
+
+```bash
+npm test                     # Node.js 24: 日時・重複・再送・ロックの検証
+npm run lint
+npx tsc --noEmit
+npm run build               # Google Fontsの取得に外部通信が必要
+```
 
 ## microCMS スキーマ（リスト形式 API 3つ）
 

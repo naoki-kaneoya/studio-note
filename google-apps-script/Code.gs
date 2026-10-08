@@ -80,7 +80,7 @@ function doPost(event) {
       end: { dateTime: booking.endAt, timeZone: "Asia/Tokyo" },
       attendees: [{ email: booking.email, displayName: booking.name }],
       transparency: "opaque",
-      visibility: "private",
+      visibility: "public",
       guestsCanModify: false,
       guestsCanInviteOthers: false,
       guestsCanSeeOtherGuests: false,
@@ -104,6 +104,57 @@ function doPost(event) {
 }
 
 function doGet() { return bookingResponse("METHOD_NOT_ALLOWED"); }
+
+/** 管理者が一度実行する。このアプリで登録した今後の予約だけを公開へ変更する。 */
+function publishExistingBookings() {
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(5000)) throw new Error("予約処理中です。少し待ってから再実行してください。");
+  try {
+    var properties = PropertiesService.getScriptProperties();
+    var raw = properties.getProperty("BOOKING_CALENDARS");
+    var calendars = raw ? JSON.parse(raw) : null;
+    if (!calendars || Array.isArray(calendars) ||
+      typeof calendars.studio !== "string" || !calendars.studio.trim() ||
+      typeof calendars.noda !== "string" || !calendars.noda.trim() ||
+      calendars.studio.trim() === calendars.noda.trim()) {
+      throw new Error("共通カレンダーの設定を確認してください。");
+    }
+    var token = ScriptApp.getOAuthToken();
+    var timeMin = new Date().toISOString();
+    var updated = 0;
+    ["studio", "noda"].forEach(function (resource) {
+      var path = "/calendars/" + encodeURIComponent(calendars[resource].trim()) + "/events";
+      var query = "?singleEvents=true&showDeleted=false&maxResults=250&timeMin=" + encodeURIComponent(timeMin) +
+        "&privateExtendedProperty=" + encodeURIComponent("studioNoteResource=" + resource) +
+        "&fields=" + encodeURIComponent("items(id,status,visibility,extendedProperties,recurringEventId),nextPageToken");
+      var pageToken;
+      do {
+        var listed = calendarRequest("get", path + query + (pageToken ? "&pageToken=" + encodeURIComponent(pageToken) : ""), undefined, token);
+        if (listed.status !== 200 || !listed.body || typeof listed.body !== "object" || Array.isArray(listed.body) ||
+          (listed.body.items !== undefined && !Array.isArray(listed.body.items))) {
+          throw new Error("予約一覧を取得できませんでした。時間をおいて再実行してください。");
+        }
+        (listed.body.items || []).forEach(function (event) {
+          var metadata = event.extendedProperties && event.extendedProperties.private;
+          if (event.status !== "confirmed" || event.recurringEventId || event.visibility === "public" ||
+            !/^stnote[0-9a-f]{64}$/.test(event.id || "") || !metadata ||
+            metadata.studioNoteResource !== resource || !/^[0-9a-f]{64}$/.test(metadata.studioNoteFingerprint || "")) return;
+          // 時刻・招待者・件名を変更せず、新しい招待メールも送らない。
+          var changed = calendarRequest("patch", path + "/" + encodeURIComponent(event.id) + "?sendUpdates=none", { visibility: "public" }, token);
+          if (changed.status !== 200 || changed.body.id !== event.id || changed.body.visibility !== "public") {
+            throw new Error("公開設定の更新に失敗しました。更新済みの予約は維持されるので、再実行してください。");
+          }
+          updated++;
+        });
+        pageToken = listed.body.nextPageToken;
+      } while (pageToken);
+    });
+    Logger.log("この予約アプリの今後の予約を公開に変更しました: " + updated + "件。");
+    return updated;
+  } finally {
+    lock.releaseLock();
+  }
+}
 
 function bookingResponse(code, data) {
   return ContentService.createTextOutput(JSON.stringify(Object.assign({ code: code }, data || {})))

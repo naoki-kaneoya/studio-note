@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { BOOKING_RESOURCES, NODA_LAST_BOOKING_DATE, isRangeAvailable, type BookingInput, type DayAvailability } from "@/lib/booking";
+import BookingTimeInput from "@/components/BookingTimeInput";
 
 type Receipt = { resourceName: string; name: string; email: string; date: string; startTime: string; endTime: string };
 const inputClass = "w-full rounded border border-slate-300 bg-white px-3 py-3 text-[16px] text-ink disabled:bg-slate-100";
@@ -150,16 +151,14 @@ export default function BookingForm({ today, initialResource, ready }: { today: 
             </>}
           </div>
         </section>
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label htmlFor="booking-start" className="mb-2 block text-sm font-medium">開始時間</label>
-            <input id="booking-start" name="startTime" type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} min={resource === "studio" ? "10:00" : undefined} max={resource === "studio" ? "20:00" : undefined} required className={inputClass} />
+        <div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <BookingTimeInput key={`${resource}:${date}:start`} id="booking-start" name="startTime" label="開始時間" value={startTime} onChange={setStartTime} />
+            <BookingTimeInput key={`${resource}:${date}:end`} id="booking-end" name="endTime" label="終了時間" value={endTime} onChange={setEndTime} />
           </div>
-          <div>
-            <label htmlFor="booking-end" className="mb-2 block text-sm font-medium">終了時間</label>
-            <input id="booking-end" name="endTime" type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} min={resource === "studio" ? "10:00" : undefined} max={resource === "studio" ? "20:00" : undefined} required className={inputClass} />
-          </div>
+          <p className="mt-3 text-sm leading-6 text-slate-600">24時間表記です。数字を直接入力するか、分のボタンを選んでください。1分単位で指定できます。</p>
         </div>
+        {selectedIsAvailable && <p aria-live="polite" className="rounded bg-slate-50 p-4 text-center"><span className="block text-sm text-slate-600">選択した利用時間</span><strong className="mt-1 block font-mono text-2xl tabular-nums">{startTime}〜{endTime}</strong></p>}
         {startTime && endTime && currentAvailability && !selectedIsAvailable && <p role="alert" className="text-sm text-red-800">この時間には予約できません。表示された空き時間の中で選んでください。</p>}
         <div>
           <label htmlFor="booking-name" className="mb-2 block text-sm font-medium">お名前</label>

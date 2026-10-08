@@ -9,7 +9,7 @@ const compile = (path) => ts.transpileModule(readFileSync(new URL(path, import.m
   compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
 }).outputText;
 const compiledClient = compile("../../lib/google-booking.ts");
-const routes = { bookings: compile("../../app/api/bookings/route.ts"), availability: compile("../../app/api/availability/route.ts") };
+const routes = { bookings: compile("../../app/api/bookings/route.ts"), availability: compile("../../app/api/availability/route.ts"), monthAvailability: compile("../../app/api/availability/month/route.ts") };
 
 export function apiHarness(route, {
   env = {},
@@ -24,7 +24,7 @@ export function apiHarness(route, {
   let client;
   const module = { exports: {} };
   const context = vm.createContext({
-    module, exports: module.exports, Buffer, URL, AbortSignal, Date: FixedDate,
+    module, exports: module.exports, Buffer, URL, AbortSignal, AbortController, Date: FixedDate,
     require: (name) => name === "@/lib/booking" ? bookingDomain : name === "@/lib/google-booking" ? client : require(name),
     process: { env: {
       GOOGLE_BOOKING_SCRIPT_URL: "https://script.google.com/macros/s/test-deployment/exec",
@@ -33,7 +33,9 @@ export function apiHarness(route, {
     fetch: async (url, options) => {
       calls.push({ url, options });
       if (failure) throw new Error("upstream token must not appear in public errors");
-      return Response.json(JSON.parse(options.body).action === "capabilities" ? capabilityResult : backendResult, { status: upstreamStatus });
+      const payload = JSON.parse(options.body);
+      const result = payload.action === "capabilities" ? capabilityResult : typeof backendResult === "function" ? await backendResult(payload, options) : backendResult;
+      return Response.json(result, { status: upstreamStatus });
     },
   });
   vm.runInContext(compiledClient, context);

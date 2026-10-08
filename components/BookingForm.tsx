@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { BOOKING_RESOURCES, NODA_LAST_BOOKING_DATE, isRangeAvailable, type BookingInput, type DayAvailability } from "@/lib/booking";
 import BookingTimeInput from "@/components/BookingTimeInput";
+import BookingMonthCalendar from "@/components/BookingMonthCalendar";
 
 type Receipt = { resourceName: string; name: string; email: string; date: string; startTime: string; endTime: string };
 const inputClass = "w-full rounded border border-slate-300 bg-white px-3 py-3 text-[16px] text-ink disabled:bg-slate-100";
@@ -23,6 +24,14 @@ export default function BookingForm({ today, initialResource, ready }: { today: 
   const pendingRequest = useRef<BookingInput | null>(null);
   const currentAvailability = availability?.resource === resource && availability.date === date ? availability : null;
   const selectedIsAvailable = isRangeAvailable(currentAvailability, startTime, endTime);
+
+  function selectDate(nextDate: string) {
+    setDate(nextDate);
+    setStartTime("");
+    setEndTime("");
+    pendingRequest.current = null;
+    setError("");
+  }
 
   useEffect(() => {
     setAvailability(null);
@@ -122,14 +131,15 @@ export default function BookingForm({ today, initialResource, ready }: { today: 
       <fieldset disabled={submitting || uncertain || !ready} className="grid gap-6 border-0 p-0">
         <div>
           <label htmlFor="booking-resource" className="mb-2 block text-sm font-medium">利用する施設</label>
-          <select id="booking-resource" name="resource" value={resource} onChange={(e) => { setResource(e.target.value as "studio" | "noda"); setStartTime(""); setEndTime(""); }} required className={inputClass}>
+          <select id="booking-resource" name="resource" value={resource} onChange={(e) => { const next = e.target.value as "studio" | "noda"; setResource(next); if (next === "noda" && date > NODA_LAST_BOOKING_DATE) selectDate(today); setStartTime(""); setEndTime(""); }} required className={inputClass}>
             {BOOKING_RESOURCES.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
           </select>
           <p className="mt-2 text-sm leading-6 text-slate-600">{resource === "studio" ? "庄内スタジオの利用時間は10:00〜20:00です。" : "野田小学校は2026年12月28日までご利用いただけます。"}</p>
         </div>
+        <BookingMonthCalendar resource={resource} date={date} today={today} ready={ready} refresh={refresh} onSelectDate={selectDate} onRefresh={() => setRefresh((value) => value + 1)} />
         <div>
           <label htmlFor="booking-date" className="mb-2 block text-sm font-medium">利用日</label>
-          <input id="booking-date" name="date" type="date" value={date} onChange={(e) => { setDate(e.target.value); setStartTime(""); setEndTime(""); }} min={today} max={resource === "noda" ? NODA_LAST_BOOKING_DATE : undefined} required className={inputClass} />
+          <input id="booking-date" name="date" type="date" value={date} onChange={(e) => selectDate(e.target.value)} min={today} max={resource === "noda" ? NODA_LAST_BOOKING_DATE : undefined} required className={inputClass} />
         </div>
         <section aria-labelledby="availability-heading" aria-busy={loading} className="rounded border border-slate-200 bg-slate-50 p-4 sm:p-5">
           <div className="flex flex-wrap items-center justify-between gap-3">

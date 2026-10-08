@@ -30,6 +30,54 @@ export type DayAvailability = {
   checkedAt: string;
 };
 
+export type MonthAvailability = {
+  resource: BookingInput["resource"];
+  month: string;
+  days: Array<
+    { date: string; status: "past" | "closed" } |
+    { date: string; status: "open"; availability: DayAvailability }
+  >;
+  checkedAt: string;
+};
+
+export function shiftBookingMonth(month: string, offset: number): string {
+  const date = new Date(`${month}-01T00:00:00Z`);
+  date.setUTCMonth(date.getUTCMonth() + offset);
+  return date.toISOString().slice(0, 7);
+}
+
+export function validateMonthAvailabilityQuery(input: unknown, now = new Date()): {
+  resource: BookingInput["resource"]; month: string; dates: string[];
+} {
+  if (!input || typeof input !== "object" || Array.isArray(input)) throw new BookingValidationError("施設と表示する月を選んでください。");
+  const value = input as Record<string, unknown>;
+  const resource = typeof value.resource === "string" ? value.resource.trim() : "";
+  const month = typeof value.month === "string" ? value.month.trim() : "";
+  if (resource !== "studio" && resource !== "noda") throw new BookingValidationError("予約する施設を選んでください。");
+  const start = new Date(`${month}-01T00:00:00Z`);
+  if (!/^\d{4}-\d{2}$/.test(month) || Number.isNaN(start.getTime()) || start.toISOString().slice(0, 7) !== month || month === "9999-12") {
+    throw new BookingValidationError("表示する月を確認してください。");
+  }
+  if (month < todayInJapan(now).slice(0, 7)) throw new BookingValidationError("今月以降を選んでください。");
+  const dates: string[] = [];
+  for (let date = start; date.toISOString().slice(0, 7) === month; date = new Date(date.getTime() + 86400000)) {
+    dates.push(date.toISOString().slice(0, 10));
+  }
+  return { resource, month, dates };
+}
+
+/** 月全体の予定を各日の営業時間へ切り分ける。過去日・閉館後は予約可能としない。 */
+export function calculateMonthAvailability(input: unknown, periods: unknown, now = new Date()): MonthAvailability {
+  const query = validateMonthAvailabilityQuery(input, now);
+  const today = todayInJapan(now);
+  const days: MonthAvailability["days"] = query.dates.map((date) => {
+    if (date < today) return { date, status: "past" };
+    if (query.resource === "noda" && date > NODA_LAST_BOOKING_DATE) return { date, status: "closed" };
+    return { date, status: "open", availability: calculateDayAvailability({ resource: query.resource, date }, periods, now) };
+  });
+  return { resource: query.resource, month: query.month, days, checkedAt: now.toISOString() };
+}
+
 export function validateAvailabilityQuery(input: unknown, now = new Date()): { resource: BookingInput["resource"]; date: string; dayStart: string; dayEnd: string } {
   if (!input || typeof input !== "object" || Array.isArray(input)) {
     throw new BookingValidationError("施設と利用日を選んでください。");

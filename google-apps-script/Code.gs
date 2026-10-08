@@ -17,7 +17,7 @@ function doPost(event) {
       return bookingResponse("UNAUTHORIZED");
     }
     if (payload.action === "capabilities") {
-      return bookingResponse("OK", { bookingPolicy: BOOKING_PUBLICATION_POLICY });
+      return bookingResponse("OK", { bookingPolicy: BOOKING_PUBLICATION_POLICY, monthlyAvailability: true });
     }
     if (payload.action === "publicationStatus" || payload.action === "repairPublications") {
       return bookingResponse("OK", {
@@ -25,9 +25,10 @@ function doPost(event) {
         publication: bookingPublicationReport(payload.action === "repairPublications")
       });
     }
-    var viewing = payload.action === "availability";
+    var monthly = payload.action === "monthAvailability";
+    var viewing = payload.action === "availability" || monthly;
     if (payload.action && !viewing) return bookingResponse("INVALID");
-    var booking = viewing ? prepareAvailability(payload.availability, new Date()) : prepareBooking(payload.booking, new Date());
+    var booking = monthly ? prepareMonthAvailability(payload.availability, new Date()) : viewing ? prepareAvailability(payload.availability, new Date()) : prepareBooking(payload.booking, new Date());
     if (!booking) return bookingResponse("INVALID");
 
     var calendars = JSON.parse(calendarConfig);
@@ -55,7 +56,7 @@ function doPost(event) {
     var token = ScriptApp.getOAuthToken();
     if (viewing) {
       var dayBusy = readBusyPeriods(ids, booking.dayStart, booking.dayEnd, token);
-      return dayBusy === null ? bookingResponse("UNAVAILABLE") : bookingResponse("OK", { busy: dayBusy, bookingPolicy: BOOKING_PUBLICATION_POLICY });
+      return dayBusy === null ? bookingResponse("UNAVAILABLE") : bookingResponse("OK", Object.assign({ busy: dayBusy, bookingPolicy: BOOKING_PUBLICATION_POLICY }, monthly ? { month: booking.month } : {}));
     }
 
     // ScriptLockはGoogle側で管理され、全サーバー・全デプロイからの送信に共有される。
@@ -251,6 +252,20 @@ function prepareAvailability(input, now) {
     dayStart: input.date + "T00:00:00+09:00",
     dayEnd: new Date(date.getTime() + 86400000).toISOString().slice(0, 10) + "T00:00:00+09:00"
   };
+}
+
+/** 月表示はFreebusyを一度だけ照会する。予定の登録や招待は行わない。 */
+function prepareMonthAvailability(input, now) {
+  if (!input || typeof input !== "object" || Array.isArray(input) ||
+    (input.resource !== "studio" && input.resource !== "noda") ||
+    typeof input.month !== "string" || !/^\d{4}-\d{2}$/.test(input.month) || input.month === "9999-12") return null;
+  var start = new Date(input.month + "-01T00:00:00Z");
+  if (Number.isNaN(start.getTime()) || start.toISOString().slice(0, 7) !== input.month) return null;
+  var today = new Date(now.getTime() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  if (input.month < today.slice(0, 7)) return null;
+  var end = new Date(start.getTime());
+  end.setUTCMonth(end.getUTCMonth() + 1);
+  return { resource: input.resource, month: input.month, dayStart: input.month + "-01T00:00:00+09:00", dayEnd: end.toISOString().slice(0, 10) + "T00:00:00+09:00" };
 }
 
 function calendarRequest(method, path, body, token) {

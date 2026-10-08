@@ -92,7 +92,8 @@ function harness({ calendars, properties, lockAvailable = true, failInsert = fal
   };
   const availability = (query = { resource: "noda", date: input.date }, secret = config.BOOKING_BACKEND_SECRET) => JSON.parse(context.doPost({ postData: { contents: JSON.stringify({ secret, action: "availability", availability: query }) } }).text);
   const management = (action, secret = config.BOOKING_BACKEND_SECRET) => JSON.parse(context.doPost({ postData: { contents: JSON.stringify({ secret, action }) } }).text);
-  return { context, submit, availability, management, calls, events, state, logs };
+  const monthAvailability = (query = { resource: "noda", month: "2026-10" }, secret = config.BOOKING_BACKEND_SECRET) => JSON.parse(context.doPost({ postData: { contents: JSON.stringify({ secret, action: "monthAvailability", availability: query }) } }).text);
+  return { context, submit, availability, monthAvailability, management, calls, events, state, logs };
 }
 
 test("空きがあれば日本時間で登録し、入力メールを招待する", () => {
@@ -482,8 +483,43 @@ test("公開済みでも空き時間扱いの既存予約を予定ありへ補�
 
 test("公開確認の機能識別はWeb側と一致し、Googleの予定を読み書きしない", () => {
   const h = harness();
-  assert.deepEqual(h.management("capabilities"), { code: "OK", bookingPolicy: BOOKING_PUBLICATION_POLICY });
+  assert.deepEqual(h.management("capabilities"), { code: "OK", bookingPolicy: BOOKING_PUBLICATION_POLICY, monthlyAvailability: true });
   assert.equal(h.calls.length, 0);
+});
+
+test("月照会は日本時間の月全体を一度のFreebusyで読み、予定や招待を作らない", () => {
+  const h = harness();
+  const result = h.monthAvailability({ resource: "studio", month: "2026-10" });
+  assert.equal(result.code, "OK");
+  assert.equal(result.month, "2026-10");
+  assert.deepEqual(result.busy, []);
+  assert.equal(h.calls.length, 1);
+  assert.deepEqual(h.calls[0].body, { timeMin: "2026-10-01T00:00:00+09:00", timeMax: "2026-11-01T00:00:00+09:00", timeZone: "Asia/Tokyo", items: [{ id: "studio@example.com" }] });
+  assert.equal(h.state.insertions, 0);
+  assert.equal(h.state.updates, 0);
+  assert.equal(h.state.releases, 0);
+});
+
+test("月照会も施設別の追加カレンダーを含め、時間帯だけを返す", () => {
+  const periods = [{ start: "2026-10-06T10:00:00+09:00", end: "2026-10-06T12:00:00+09:00" }];
+  const h = harness({ properties: { CONFLICT_CALENDAR_IDS: '{"noda":["external@example.com"]}' }, calendars: { "noda@example.com": { busy: [] }, "external@example.com": { busy: periods, summary: "private title" } } });
+  const result = h.monthAvailability();
+  assert.deepEqual(result.busy, periods.map(period => ({ start: new Date(period.start).toISOString(), end: new Date(period.end).toISOString() })));
+  assert.deepEqual(h.calls[0].body.items, [{ id: "noda@example.com" }, { id: "external@example.com" }]);
+  assert.equal(JSON.stringify(result).includes("private title"), false);
+});
+
+test("不正な月と誤った秘密値では月照会をGoogleへ送らない", () => {
+  const h = harness();
+  for (const query of [{}, { resource: "other", month: "2026-10" }, { resource: "noda", month: "2026-09" }, { resource: "noda", month: "2026-13" }, { resource: "noda", month: "9999-12" }]) assert.equal(h.monthAvailability(query).code, "INVALID");
+  assert.equal(h.monthAvailability(undefined, "wrong").code, "UNAUTHORIZED");
+  assert.equal(h.calls.length, 0);
+});
+
+test("月照会も参照権限の失敗を空きと扱わず、12月の終了を翌年へ送る", () => {
+  const h = harness({ calendars: { "noda@example.com": { errors: [{ reason: "forbidden" }] } } });
+  assert.equal(h.monthAvailability({ resource: "noda", month: "2026-12" }).code, "UNAVAILABLE");
+  assert.equal(h.calls[0].body.timeMax, "2027-01-01T00:00:00+09:00");
 });
 
 test("完了応答はWeb側が確認できる公開・予定ありの保存結果を返す", () => {

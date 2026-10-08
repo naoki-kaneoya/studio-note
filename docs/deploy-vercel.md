@@ -1,6 +1,8 @@
 # Vercel デプロイ手順（GitHub連携）
 
-リポジトリ：https://github.com/naoki-kaneoya/studio-note （private）
+リポジトリ：https://github.com/naoki-kaneoya/studio-note
+
+既存の本番プロジェクトがある場合は、そのプロジェクトを利用する。環境変数を登録してから今回のコードを本番へ反映する。
 
 ## 1. プロジェクトをImport
 1. https://vercel.com/ にログイン（GitHubアカウントでログインすると連携が楽）
@@ -11,7 +13,18 @@
 5. Build/Output 設定もデフォルトでOK（`next build`）
 
 ## 2. 環境変数を登録（Import画面の Environment Variables）
-以下をすべて登録する。**現時点の値**で入れてOK（ドメイン取得後に一部更新）。
+予約サイトに必要な設定は、Vercelのプロジェクトに登録する。利用者のスマホやPCには何も設定しない。
+既存プロジェクトの場合は **対象プロジェクト → Settings → Environment Variables** を開く。
+Google Apps Scriptの準備は [booking-setup.md](booking-setup.md) を参照。
+
+| Key | 値 | 必要な機能 |
+| --- | --- | --- |
+| `GOOGLE_BOOKING_SCRIPT_URL` | Apps ScriptをWebアプリとしてデプロイした `/exec` URL | 空き時間の表示と直接予約 |
+| `GOOGLE_BOOKING_SECRET` | Apps Scriptの `BOOKING_BACKEND_SECRET` と同じ秘密値 | 空き時間の表示と直接予約 |
+
+この2つはサーバー専用で、`NEXT_PUBLIC_` は付けない。Productionに設定し、検証環境にも必要ならPreviewに設定する。`BOOKING_ACCESS_CODE`は不要。
+必要に応じて `BOOKING_SITE_ORIGIN=https://<本番ドメイン>` をProductionへ設定し、予約送信を受け付ける公開元を明示できる。末尾の `/` は付けない。設定した場合は、そのドメインの `/book` を共有する。未設定の場合はリクエストURLと同じ公開元から受け付ける。
+以下は既存サイトのその他の機能に応じて登録する。microCMSやResendの設定がなくても、Google接続が設定されていれば空き表示と直接予約は利用できる。
 
 | Key | 現時点の値 | 備考 |
 | --- | --- | --- |
@@ -22,20 +35,27 @@
 | `CONTACT_EMAIL` | `kaneoya.naoki@gmail.com` | ドメイン認証後に本来の受信先へ変更 |
 | `NEXT_PUBLIC_UPNOW_STUDIO_URL` | `https://upnow.jp/note/Studio-note` | |
 | `NEXT_PUBLIC_UPNOW_NODA_URL` | `https://upnow.jp/note/noda` | |
-| `NEXT_PUBLIC_SITE_URL` | `https://studio-note.vercel.app` | 確定後、独自ドメインに変更 |
+| `NEXT_PUBLIC_SITE_URL` | `https://<実際に割り当てられたドメイン>` | VercelのDomainsで確認する |
 | `NEXT_PUBLIC_GA_ID` | （空でOK） | スタジオ専用GAの測定IDを後で設定 |
 
 > `NEXT_PUBLIC_SITE_URL` は最初Vercelの割当URL（`https://<プロジェクト名>.vercel.app`）でOK。
 > 正確なURLはデプロイ後に確認して設定し直す。
 
+今回の既存プロジェクトは [naoki-kaneoyas-projects/studio-note](https://vercel.com/naoki-kaneoyas-projects/studio-note)。GitHubのVercelチェックと過去の本番デプロイから確認済み。
+`studio-note.vercel.app` は別のサイトが使用しているため、このプロジェクトの公開URLとして使わない。
+
 ## 3. Deploy
 - **Deploy** を押す → ビルド〜公開（数分）
 - 完了後、`https://<プロジェクト名>.vercel.app` で全ページ表示を確認
+- `https://<プロジェクト名>.vercel.app/book` で空き状況と予約を確認する。公開URLはVercelが実際に割り当てたものを使う。
 
 ## 4. デプロイ後チェック
 - [ ] 全ページ表示（トップ/studio/equipment/price/gallery/shooting/news/noda/terms/company）
 - [ ] 機材・お知らせがmicroCMSの実データで表示される
-- [ ] 予約ボタンがUpnowに遷移する
+- [ ] 直接予約ボタンが `/book`、一般予約ボタンがUpnowに遷移する
+- [ ] `/book` で施設ごとの空き時間を表示し、空き枠から利用時間を選択できる
+- [ ] テスト用カレンダー・管理者のテスト用アドレスで予定登録と招待の到着を確認する
+- [ ] スマホからも施設・日付・時間を選んで予約できる
 - [ ] `/shooting` フォーム送信 → `/thanks` 遷移 → `kaneoya.naoki@gmail.com` に着信
 - [ ] `https://<project>.vercel.app/sitemap.xml` `/robots.txt` が出る
 - [ ] `NEXT_PUBLIC_SITE_URL` を実URLに更新して再デプロイ
@@ -43,6 +63,7 @@
 ## 5. 以降の運用
 - `main` ブランチに push すると自動で本番デプロイ
 - 環境変数を変えたら **Settings → Environment Variables** で更新し、再デプロイ
+- 利用者には `https://<公開先ドメイン>/book` を共有する。Google接続の秘密値は共有しない
 - microCMSのコンテンツ更新は最大1時間で反映（ISR revalidate:3600）。即時反映したい場合はVercelで再デプロイ
 
 ## 6. 独自ドメイン取得後

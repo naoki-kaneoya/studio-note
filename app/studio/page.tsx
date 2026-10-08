@@ -57,6 +57,9 @@ export default async function StudioPage() {
           <p style={{ margin: "22px 0 0", maxWidth: 560, color: "#555", fontSize: 16, lineHeight: 1.95 }}>
             光を一から組める全面ホワイトの空間。庄内駅から徒歩1分、無人で気兼ねなく使えるレンタルスタジオです。
           </p>
+          <div style={{ marginTop: 28 }}>
+            <Link href="/book?resource=studio" className="dc-btn dc-btn-primary">直接予約する</Link>
+          </div>
         </div>
       </section>
 

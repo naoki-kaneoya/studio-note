@@ -1,0 +1,12 @@
+# Credentials and private Google setup copies must never be uploaded.
+.env
+.env*.local
+google-apps-script/*.private.gs
+
+# Local build output and development configuration.
+.git
+.vercel
+node_modules
+.next
+.claude
+*.tsbuildinfo

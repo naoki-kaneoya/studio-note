@@ -49,7 +49,20 @@ export async function POST(req: Request) {
   if (!backend) {
     return reply("現在、予約受付の準備中です。管理者にお問い合わせください。", 503);
   }
-  if (req.headers.get("origin") && req.headers.get("origin") !== new URL(req.url).origin) {
+  // HTTPSトンネルではNext.jsが内部の127.0.0.1をURLとして受け取る。
+  // 公開元は管理者の設定だけを信頼し、転送ヘッダーからは取得しない。
+  let allowedOrigin = new URL(req.url).origin;
+  const publicOrigin = process.env.BOOKING_SITE_ORIGIN;
+  if (publicOrigin) {
+    try {
+      const url = new URL(publicOrigin);
+      if (url.protocol !== "https:" || url.origin !== publicOrigin) throw new Error("Invalid origin");
+      allowedOrigin = publicOrigin;
+    } catch {
+      return reply("現在、予約受付の準備中です。管理者にお問い合わせください。", 503);
+    }
+  }
+  if (req.headers.get("origin") && req.headers.get("origin") !== allowedOrigin) {
     return reply("このページから予約を送信してください。", 403);
   }
   if (req.headers.get("content-type")?.split(";")[0].trim() !== "application/json") {

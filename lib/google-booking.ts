@@ -1,4 +1,5 @@
 type BackendConfig = { url: string; secret: string };
+export const BOOKING_PUBLICATION_POLICY = "public-opaque-v2";
 
 /** Google接続の宛先・秘密値・キャッシュ方針を、予約と空き表示で共有する。 */
 export function getBookingBackendConfig(): BackendConfig | null {
@@ -16,14 +17,14 @@ export function getBookingBackendConfig(): BackendConfig | null {
   }
 }
 
-export async function callBookingBackend(config: BackendConfig, payload: Record<string, unknown>): Promise<Record<string, unknown>> {
+export async function callBookingBackend(config: BackendConfig, payload: Record<string, unknown>, signal = AbortSignal.timeout(45000)): Promise<Record<string, unknown>> {
   const response = await fetch(config.url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ ...payload, secret: config.secret }),
     cache: "no-store",
     redirect: "follow",
-    signal: AbortSignal.timeout(45000),
+    signal,
   });
   if (!response.ok) throw new Error("Booking backend unavailable");
   const result: unknown = await response.json();

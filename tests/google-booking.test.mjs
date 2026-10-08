@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import vm from "node:vm";
 import { validateBooking } from "../lib/booking.ts";
+import { BOOKING_PUBLICATION_POLICY } from "../lib/google-booking.ts";
 
 const source = readFileSync(new URL("../google-apps-script/Code.gs", import.meta.url), "utf8");
 const now = new Date("2026-10-05T00:00:00Z");
@@ -13,7 +14,7 @@ const input = {
   startTime: "10:00", endTime: "12:00", requestId: "12345678-1234-4234-8234-123456789abc",
 };
 
-function harness({ calendars, properties, lockAvailable = true, failInsert = false, afterInsert, failList = false, failPatch = false, listPageSize = 250 } = {}) {
+function harness({ calendars, properties, lockAvailable = true, failInsert = false, afterInsert, afterPatch, failList = false, failPatch = false, listPageSize = 250 } = {}) {
   const calls = [];
   const events = new Map();
   const logs = [];
@@ -65,7 +66,7 @@ function harness({ calendars, properties, lockAvailable = true, failInsert = fal
           const key = url.split("?")[0];
           const previous = events.get(key);
           if (!previous) { status = 404; result = {}; }
-          else { result = { ...previous, ...body }; events.set(key, result); state.updates++; }
+          else { result = { ...previous, ...body }; events.set(key, result); state.updates++; afterPatch?.(result); }
         }
       } else if (options.method === "get") {
         result = events.get(url.split("/events/")[0] + "/events/" + url.split("/").at(-1));
@@ -90,7 +91,8 @@ function harness({ calendars, properties, lockAvailable = true, failInsert = fal
     return JSON.parse(result.text).code;
   };
   const availability = (query = { resource: "noda", date: input.date }, secret = config.BOOKING_BACKEND_SECRET) => JSON.parse(context.doPost({ postData: { contents: JSON.stringify({ secret, action: "availability", availability: query }) } }).text);
-  return { context, submit, availability, calls, events, state, logs };
+  const management = (action, secret = config.BOOKING_BACKEND_SECRET) => JSON.parse(context.doPost({ postData: { contents: JSON.stringify({ secret, action }) } }).text);
+  return { context, submit, availability, management, calls, events, state, logs };
 }
 
 test("空きがあれば日本時間で登録し、入力メールを招待する", () => {
@@ -139,7 +141,7 @@ test("既存の今後のアプリ予約だけを公開へ変更し、日時・�
   const patches = h.calls.filter((call) => call.options.method === "patch");
   assert.equal(patches.length, 2);
   for (const patch of patches) {
-    assert.deepEqual(patch.body, { visibility: "public" });
+    assert.deepEqual(patch.body, { visibility: "public", transparency: "opaque" });
     assert.match(patch.url, /sendUpdates=none$/);
   }
   assert.ok(h.logs.every((message) => !message.includes(input.name) && !message.includes(input.email)));
@@ -330,7 +332,7 @@ test("空き閲覧は選択した施設の一日を照会し、予定や招待�
     { start: "2026-10-06T12:00:00+09:00", end: "2026-10-06T14:00:00+09:00", summary: "private name", email: "private@example.com" },
   ] } } });
   const result = h.availability({ resource: "studio", date: input.date });
-  assert.deepEqual(result, { code: "OK", busy: [{ start: "2026-10-06T03:00:00.000Z", end: "2026-10-06T05:00:00.000Z" }] });
+  assert.deepEqual(result, { code: "OK", bookingPolicy: BOOKING_PUBLICATION_POLICY, busy: [{ start: "2026-10-06T03:00:00.000Z", end: "2026-10-06T05:00:00.000Z" }] });
   assert.equal(h.calls.length, 1);
   assert.deepEqual(h.calls[0].body.items, [{ id: "studio@example.com" }]);
   assert.equal(h.calls[0].body.timeMin, "2026-10-06T00:00:00+09:00");
@@ -366,7 +368,7 @@ test("空き閲覧の施設・日付検証はWeb側と一致する", () => {
 
 test("空き表示後に別の予約が入ったら送信時に拒否する", () => {
   const h = harness();
-  assert.deepEqual(h.availability(), { code: "OK", busy: [] });
+  assert.deepEqual(h.availability(), { code: "OK", bookingPolicy: BOOKING_PUBLICATION_POLICY, busy: [] });
   assert.equal(h.submit({ ...input, requestId: "aaaaaaaa-1234-4234-8234-123456789abc" }), "OK");
   assert.equal(h.submit(), "CONFLICT");
   assert.equal(h.state.insertions, 1);
@@ -377,5 +379,158 @@ test("予定の削除が空き閲覧に反映される", () => {
   h.submit();
   assert.equal(h.availability().busy.length, 1);
   h.events.clear();
-  assert.deepEqual(h.availability(), { code: "OK", busy: [] });
+  assert.deepEqual(h.availability(), { code: "OK", bookingPolicy: BOOKING_PUBLICATION_POLICY, busy: [] });
 });
+
+test("作成後に非公開・空き時間で保存されても公開・予定ありに補正してから完了する", () => {
+  const h = harness({ afterInsert: (event) => { event.visibility = "private"; event.transparency = "transparent"; } });
+  assert.equal(h.submit(), "OK");
+  const event = [...h.events.values()][0];
+  assert.equal(event.visibility, "public");
+  assert.equal(event.transparency, "opaque");
+  assert.equal(event.attendees[0].email, input.email);
+  assert.equal(event.start.dateTime, "2026-10-06T10:00:00+09:00");
+  assert.equal(h.state.insertions, 1);
+  assert.equal(h.state.updates, 1);
+  assert.ok(h.calls.filter(c => c.options.method === "patch").every(c => c.url.endsWith("?sendUpdates=none")));
+  assert.equal(h.calls.filter(c => c.options.method === "get" && c.url.includes("/events/")).length, 3, "作成前・作成後・補正後に保存結果を照合する");
+});
+
+test("以前の非公開予約の再確認で公開を補正し、予定と招待を増やさない", () => {
+  const h = harness();
+  assert.equal(h.submit(), "OK");
+  [...h.events.values()][0].visibility = "private";
+  assert.equal(h.submit(), "OK");
+  assert.equal([...h.events.values()][0].visibility, "public");
+  assert.equal(h.state.insertions, 1);
+  assert.equal(h.state.updates, 1);
+  assert.equal(h.calls.filter(c => c.url.endsWith("?sendUpdates=all")).length, 1);
+});
+
+test("Googleが既定の予定ありを省略しても公開の保存結果を確認できる", () => {
+  const h = harness({ afterInsert: (event) => { delete event.transparency; } });
+  assert.equal(h.submit(), "OK");
+  assert.equal(h.state.updates, 0);
+  assert.equal(h.context.publishExistingBookings(), 0);
+});
+
+test("保存確認で別の予定IDが返ったら完了としない", () => {
+  const h = harness();
+  const original = h.context.UrlFetchApp.fetch;
+  h.context.UrlFetchApp.fetch = (url, options) => {
+    const response = original(url, options);
+    if (options.method !== "get" || response.getResponseCode() !== 200) return response;
+    return { getResponseCode: () => 200, getContentText: () => JSON.stringify({ ...JSON.parse(response.getContentText()), id: "wrong-event-id" }) };
+  };
+  assert.equal(h.submit(), "UNAVAILABLE");
+  assert.equal(h.state.insertions, 1);
+});
+
+test("公開の補正が拒否された予定を予約完了としない", () => {
+  const h = harness({ failPatch: true, afterInsert: (event) => { event.visibility = "private"; } });
+  assert.equal(h.submit(), "UNAVAILABLE");
+  assert.equal([...h.events.values()][0].visibility, "private");
+  assert.equal(h.state.insertions, 1);
+  assert.equal(h.state.locked, false);
+});
+
+test("補正の応答が公開でも実際の保存結果が非公開なら完了としない", () => {
+  const h = harness({
+    afterInsert: (event) => { event.visibility = "private"; },
+    afterPatch: (event) => { event.visibility = "private"; },
+  });
+  const original = h.context.UrlFetchApp.fetch;
+  h.context.UrlFetchApp.fetch = (url, options) => {
+    const response = original(url, options);
+    if (options.method !== "patch") return response;
+    return { getResponseCode: () => 200, getContentText: () => JSON.stringify({ ...JSON.parse(response.getContentText()), visibility: "public" }) };
+  };
+  assert.equal(h.submit(), "UNAVAILABLE");
+  assert.equal([...h.events.values()][0].visibility, "private");
+});
+
+test("作成後の保存結果を読めなければ完了とせず、同じ送信IDで再確認できる", () => {
+  const h = harness();
+  const original = h.context.UrlFetchApp.fetch;
+  h.context.UrlFetchApp.fetch = (url, options) => {
+    if (options.method === "get" && h.events.has(url)) return { getResponseCode: () => 403, getContentText: () => '{}' };
+    return original(url, options);
+  };
+  assert.equal(h.submit(), "UNAVAILABLE");
+  h.context.UrlFetchApp.fetch = original;
+  assert.equal(h.submit(), "OK");
+  assert.equal(h.state.insertions, 1);
+});
+
+test("非公開でも予約内容が一致しない予定は補正しない", () => {
+  const h = harness();
+  h.submit();
+  [...h.events.values()][0].visibility = "private";
+  assert.equal(h.submit({ ...input, email: "other@example.com" }), "REQUEST_MISMATCH");
+  assert.equal([...h.events.values()][0].visibility, "private");
+  assert.equal(h.state.updates, 0);
+});
+
+test("公開済みでも空き時間扱いの既存予約を予定ありへ補正する", () => {
+  const h = harness();
+  h.submit();
+  [...h.events.values()][0].transparency = "transparent";
+  assert.equal(h.context.publishExistingBookings(), 1);
+  assert.equal([...h.events.values()][0].transparency, "opaque");
+  assert.equal(h.state.insertions, 1);
+});
+
+test("公開確認の機能識別はWeb側と一致し、Googleの予定を読み書きしない", () => {
+  const h = harness();
+  assert.deepEqual(h.management("capabilities"), { code: "OK", bookingPolicy: BOOKING_PUBLICATION_POLICY });
+  assert.equal(h.calls.length, 0);
+});
+
+test("完了応答はWeb側が確認できる公開・予定ありの保存結果を返す", () => {
+  const h = harness();
+  const result = JSON.parse(h.context.doPost({ postData: { contents: JSON.stringify({ secret: "test-backend-secret", booking: input }) } }).text);
+  assert.deepEqual(result, { code: "OK", bookingPolicy: BOOKING_PUBLICATION_POLICY, visibility: "public", transparency: "opaque" });
+  const saved = [...h.events.values()][0];
+  assert.equal(saved.visibility, result.visibility);
+  assert.equal(saved.transparency, result.transparency);
+});
+
+test("公開状態の照会は件数だけを返し、既存予定を変更しない", () => {
+  const h = harness();
+  h.submit();
+  h.submit({ ...input, resource: "studio" });
+  for (const event of h.events.values()) event.visibility = "private";
+  const result = h.management("publicationStatus");
+  assert.equal(result.code, "OK");
+  assert.equal(result.bookingPolicy, BOOKING_PUBLICATION_POLICY);
+  assert.deepEqual(result.publication.resources, {
+    studio: { total: 1, needingUpdate: 1, updated: 0 }, noda: { total: 1, needingUpdate: 1, updated: 0 },
+  });
+  assert.equal(JSON.stringify(result).includes(input.email), false);
+  assert.equal(JSON.stringify(result).includes(input.name), false);
+  assert.equal(h.state.updates, 0);
+});
+
+test("認証済みの既存予約補正は両施設を公開・予定ありにし、再実行しても予定と招待を増やさない", () => {
+  const h = harness();
+  h.submit();
+  h.submit({ ...input, resource: "studio" });
+  for (const event of h.events.values()) { event.visibility = "private"; event.transparency = "transparent"; }
+  const result = h.management("repairPublications");
+  assert.equal(result.code, "OK");
+  assert.deepEqual(result.publication.resources, {
+    studio: { total: 1, needingUpdate: 0, updated: 1 }, noda: { total: 1, needingUpdate: 0, updated: 1 },
+  });
+  for (const event of h.events.values()) { assert.equal(event.visibility, "public"); assert.equal(event.transparency, "opaque"); }
+  assert.equal(h.management("repairPublications").publication.resources.studio.updated, 0);
+  assert.equal(h.state.insertions, 2);
+  assert.equal(h.state.updates, 2);
+});
+
+for (const action of ["capabilities", "publicationStatus", "repairPublications"]) {
+  test("秘密値が違う管理操作ではGoogleへアクセスしない: " + action, () => {
+    const h = harness();
+    assert.equal(h.management(action, "wrong-secret").code, "UNAUTHORIZED");
+    assert.equal(h.calls.length, 0);
+  });
+}

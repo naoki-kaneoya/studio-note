@@ -11,7 +11,12 @@ const compile = (path) => ts.transpileModule(readFileSync(new URL(path, import.m
 const compiledClient = compile("../../lib/google-booking.ts");
 const routes = { bookings: compile("../../app/api/bookings/route.ts"), availability: compile("../../app/api/availability/route.ts") };
 
-export function apiHarness(route, { env = {}, backendResult = { code: "OK" }, failure = false, upstreamStatus = 200 } = {}) {
+export function apiHarness(route, {
+  env = {},
+  backendResult = { code: "OK", bookingPolicy: "public-opaque-v2", visibility: "public", transparency: "opaque" },
+  capabilityResult = { code: "OK", bookingPolicy: "public-opaque-v2" },
+  failure = false, upstreamStatus = 200,
+} = {}) {
   const calls = [];
   class FixedDate extends Date {
     constructor(...args) { super(...(args.length ? args : ["2026-10-05T00:00:00Z"])); }
@@ -28,7 +33,7 @@ export function apiHarness(route, { env = {}, backendResult = { code: "OK" }, fa
     fetch: async (url, options) => {
       calls.push({ url, options });
       if (failure) throw new Error("upstream token must not appear in public errors");
-      return Response.json(backendResult, { status: upstreamStatus });
+      return Response.json(JSON.parse(options.body).action === "capabilities" ? capabilityResult : backendResult, { status: upstreamStatus });
     },
   });
   vm.runInContext(compiledClient, context);

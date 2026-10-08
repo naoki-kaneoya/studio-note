@@ -8,8 +8,11 @@ const input = {
   startTime: "10:00", endTime: "12:00", requestId: "12345678-1234-4234-8234-123456789abc",
 };
 
-function handler({ env = {}, backendCode = "OK", failure = false } = {}) {
-  const { invoke, calls } = apiHarness("bookings", { env, backendResult: { code: backendCode }, failure });
+function handler({ env = {}, backendCode = "OK", failure = false, capabilityResult, proof = {} } = {}) {
+  const { invoke, calls } = apiHarness("bookings", {
+    env, backendResult: { code: backendCode, bookingPolicy: "public-opaque-v2", visibility: "public", transparency: "opaque", ...proof },
+    failure, capabilityResult,
+  });
   const send = (payload = input, headers = {}, raw = false) => invoke(new Request("https://studio.example/api/bookings", {
     method: "POST", headers: { "Content-Type": "application/json", ...headers },
     body: raw ? payload : JSON.stringify(payload),
@@ -28,7 +31,9 @@ test("APIはログインや合言葉なしで、選択した施設の予約を�
   assert.equal(result.booking.resource, "noda");
   assert.equal(result.booking.resourceName, "野田小学校スタジオ");
   assert.equal(JSON.stringify(result).includes("secret"), false);
-  const forwarded = JSON.parse(h.calls[0].options.body);
+  assert.equal(JSON.parse(h.calls[0].options.body).action, "capabilities");
+  assert.equal(h.calls[0].options.signal, h.calls[1].options.signal, "事前確認と予約送信で同じ45秒の期限を使う");
+  const forwarded = JSON.parse(h.calls[1].options.body);
   assert.equal(forwarded.secret, "test-backend-secret");
   assert.equal(forwarded.booking.startAt, "2026-10-06T10:00:00+09:00");
   assert.equal("accessCode" in forwarded.booking, false);
@@ -45,7 +50,7 @@ test("庄内を選べば受付結果にも庄内が表示される", async () =>
   const response = await h.send({ ...input, resource: "studio" });
   assert.equal(response.status, 200);
   assert.equal((await response.json()).booking.resourceName, "Studio note（庄内）");
-  assert.equal(JSON.parse(h.calls[0].options.body).booking.resource, "studio");
+  assert.equal(JSON.parse(h.calls[1].options.body).booking.resource, "studio");
 });
 
 test("Google接続未設定では予約を受け付けない", async () => {
@@ -74,7 +79,7 @@ test("HTTPSトンネルからの予約は設定済みの公開元から受け付
     method: "POST", headers: { "Content-Type": "application/json", Origin: "https://booking.example" }, body: JSON.stringify(input),
   }));
   assert.equal(response.status, 200);
-  assert.equal(calls.length, 1);
+  assert.equal(calls.length, 2);
 });
 
 test("公開元設定後も他のサイトからの予約は転送しない", async () => {
@@ -129,3 +134,23 @@ test("外部通信エラーは再送可能とし、秘密値やエラー本文�
   assert.match(result.message, /入力を変えず/);
   assert.equal(JSON.stringify(result).includes("upstream token"), false);
 });
+
+for (const capabilityResult of [{ code: "INVALID" }, { code: "OK" }, { code: "OK", bookingPolicy: "old-policy" }]) {
+  test("公開確認に対応していないGoogle側コードには予約内容を送らない: " + JSON.stringify(capabilityResult), async () => {
+    const h = handler({ capabilityResult });
+    assert.equal((await h.send()).status, 503);
+    assert.equal(h.calls.length, 1);
+    assert.equal(JSON.parse(h.calls[0].options.body).action, "capabilities");
+    assert.equal("booking" in JSON.parse(h.calls[0].options.body), false);
+  });
+}
+
+for (const proof of [{ visibility: "private" }, { visibility: undefined }, { transparency: "transparent" }, { bookingPolicy: undefined }]) {
+  test("公開・予定ありの確認が欠けた予約を完了としない: " + JSON.stringify(proof), async () => {
+    const h = handler({ proof });
+    const response = await h.send();
+    assert.equal(response.status, 503);
+    assert.equal((await response.json()).ok, undefined);
+    assert.equal(h.calls.length, 2);
+  });
+}

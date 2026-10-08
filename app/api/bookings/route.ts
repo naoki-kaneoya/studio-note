@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { BOOKING_RESOURCES, BookingValidationError, validateBooking } from "@/lib/booking";
-import { callBookingBackend, getBookingBackendConfig } from "@/lib/google-booking";
+import { BOOKING_PUBLICATION_POLICY, callBookingBackend, getBookingBackendConfig } from "@/lib/google-booking";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -72,10 +72,19 @@ export async function POST(req: Request) {
   try {
     const input = await readInput(req);
     const booking = validateBooking(input, new Date());
-    const result = await callBookingBackend(backend, { booking });
+    // 古いGoogle側コードには予約を渡さず、非公開の予定が新しく増えるのを防ぐ。
+    const signal = AbortSignal.timeout(45000);
+    const capability = await callBookingBackend(backend, { action: "capabilities" }, signal);
+    if (capability.code !== "OK" || capability.bookingPolicy !== BOOKING_PUBLICATION_POLICY) {
+      return reply("現在、予約受付を調整しています。管理者にお問い合わせください。", 503);
+    }
+    const result = await callBookingBackend(backend, { booking }, signal);
     if (result.code !== "OK") {
       const error = typeof result.code === "string" ? messages[result.code] : undefined;
       return reply(error?.message ?? "予約状況を確認できませんでした。同じ内容でもう一度お試しください。", error?.status ?? 503);
+    }
+    if (result.bookingPolicy !== BOOKING_PUBLICATION_POLICY || result.visibility !== "public" || result.transparency !== "opaque") {
+      return reply("予約の公開状態を確認できませんでした。入力を変えずに、もう一度お試しください。", 503);
     }
     return NextResponse.json({
       ok: true,

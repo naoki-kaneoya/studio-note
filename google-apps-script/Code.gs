@@ -1,4 +1,6 @@
 /** このプロジェクトはWebアプリとして「自分として実行」でデプロイする。 */
+var BOOKING_PUBLICATION_POLICY = "public-opaque-v2";
+
 function doPost(event) {
   var lock;
   var locked = false;
@@ -13,6 +15,15 @@ function doPost(event) {
     try { payload = JSON.parse(raw); } catch (_) { return bookingResponse("INVALID"); }
     if (!payload || typeof payload.secret !== "string" || !sameSecret(payload.secret, secret)) {
       return bookingResponse("UNAUTHORIZED");
+    }
+    if (payload.action === "capabilities") {
+      return bookingResponse("OK", { bookingPolicy: BOOKING_PUBLICATION_POLICY });
+    }
+    if (payload.action === "publicationStatus" || payload.action === "repairPublications") {
+      return bookingResponse("OK", {
+        bookingPolicy: BOOKING_PUBLICATION_POLICY,
+        publication: bookingPublicationReport(payload.action === "repairPublications")
+      });
     }
     var viewing = payload.action === "availability";
     if (payload.action && !viewing) return bookingResponse("INVALID");
@@ -44,7 +55,7 @@ function doPost(event) {
     var token = ScriptApp.getOAuthToken();
     if (viewing) {
       var dayBusy = readBusyPeriods(ids, booking.dayStart, booking.dayEnd, token);
-      return dayBusy === null ? bookingResponse("UNAVAILABLE") : bookingResponse("OK", { busy: dayBusy });
+      return dayBusy === null ? bookingResponse("UNAVAILABLE") : bookingResponse("OK", { busy: dayBusy, bookingPolicy: BOOKING_PUBLICATION_POLICY });
     }
 
     // ScriptLockはGoogle側で管理され、全サーバー・全デプロイからの送信に共有される。
@@ -60,7 +71,7 @@ function doPost(event) {
     var eventPath = "/calendars/" + encodeURIComponent(calendarId) + "/events/" + eventId;
     var previous = calendarRequest("get", eventPath, undefined, token);
     if (previous.status === 200) {
-      return bookingResponse(existingBookingCode(previous.body, fingerprint, booking));
+      return bookingOutcome(completePublicBooking(eventPath, previous.body, fingerprint, booking, token));
     }
     if (previous.status === 410) return bookingResponse("CANCELLED");
     if (previous.status !== 404) return bookingResponse("UNAVAILABLE");
@@ -87,12 +98,14 @@ function doPost(event) {
       extendedProperties: { private: { studioNoteFingerprint: fingerprint, studioNoteResource: booking.resource } }
     }, token);
     if ((created.status === 200 || created.status === 201) && created.body.id === eventId) {
-      return bookingResponse("OK");
+      // 作成リクエストの指定だけで成功とせず、共通カレンダーから保存結果を読む。
+      var saved = calendarRequest("get", eventPath, undefined, token);
+      return saved.status === 200 ? bookingOutcome(completePublicBooking(eventPath, saved.body, fingerprint, booking, token)) : bookingResponse("UNAVAILABLE");
     }
     // 通信再送で同じIDが既に作られていれば、内容を照合して同じ結果を返す。
     if (created.status === 409) {
       var duplicate = calendarRequest("get", eventPath, undefined, token);
-      if (duplicate.status === 200) return bookingResponse(existingBookingCode(duplicate.body, fingerprint, booking));
+      if (duplicate.status === 200) return bookingOutcome(completePublicBooking(eventPath, duplicate.body, fingerprint, booking, token));
     }
     return bookingResponse("UNAVAILABLE");
   } catch (_) {
@@ -107,6 +120,14 @@ function doGet() { return bookingResponse("METHOD_NOT_ALLOWED"); }
 
 /** 管理者が一度実行する。このアプリで登録した今後の予約だけを公開へ変更する。 */
 function publishExistingBookings() {
+  var report = bookingPublicationReport(true);
+  var updated = report.resources.studio.updated + report.resources.noda.updated;
+  Logger.log("この予約アプリの今後の予約を公開・予定ありに変更しました: " + updated + "件。");
+  return updated;
+}
+
+/** 認証済み管理操作。予約の内容は応答に含めず、施設ごとの件数だけを返す。 */
+function bookingPublicationReport(repair) {
   var lock = LockService.getScriptLock();
   if (!lock.tryLock(5000)) throw new Error("予約処理中です。少し待ってから再実行してください。");
   try {
@@ -121,12 +142,14 @@ function publishExistingBookings() {
     }
     var token = ScriptApp.getOAuthToken();
     var timeMin = new Date().toISOString();
-    var updated = 0;
+    var report = { checkedAt: timeMin, resources: {} };
     ["studio", "noda"].forEach(function (resource) {
+      var counts = { total: 0, needingUpdate: 0, updated: 0 };
+      report.resources[resource] = counts;
       var path = "/calendars/" + encodeURIComponent(calendars[resource].trim()) + "/events";
       var query = "?singleEvents=true&showDeleted=false&maxResults=250&timeMin=" + encodeURIComponent(timeMin) +
         "&privateExtendedProperty=" + encodeURIComponent("studioNoteResource=" + resource) +
-        "&fields=" + encodeURIComponent("items(id,status,visibility,extendedProperties,recurringEventId),nextPageToken");
+        "&fields=" + encodeURIComponent("items(id,status,visibility,transparency,extendedProperties,recurringEventId),nextPageToken");
       var pageToken;
       do {
         var listed = calendarRequest("get", path + query + (pageToken ? "&pageToken=" + encodeURIComponent(pageToken) : ""), undefined, token);
@@ -136,24 +159,55 @@ function publishExistingBookings() {
         }
         (listed.body.items || []).forEach(function (event) {
           var metadata = event.extendedProperties && event.extendedProperties.private;
-          if (event.status !== "confirmed" || event.recurringEventId || event.visibility === "public" ||
+          if (event.status !== "confirmed" || event.recurringEventId ||
             !/^stnote[0-9a-f]{64}$/.test(event.id || "") || !metadata ||
             metadata.studioNoteResource !== resource || !/^[0-9a-f]{64}$/.test(metadata.studioNoteFingerprint || "")) return;
-          // 時刻・招待者・件名を変更せず、新しい招待メールも送らない。
-          var changed = calendarRequest("patch", path + "/" + encodeURIComponent(event.id) + "?sendUpdates=none", { visibility: "public" }, token);
-          if (changed.status !== 200 || changed.body.id !== event.id || changed.body.visibility !== "public") {
-            throw new Error("公開設定の更新に失敗しました。更新済みの予約は維持されるので、再実行してください。");
+          counts.total++;
+          if (isPublicBusyEvent(event)) return;
+          if (!repair) { counts.needingUpdate++; return; }
+          if (!ensurePublicEvent(path + "/" + encodeURIComponent(event.id), event, token)) {
+            throw new Error("公開・予定ありの更新に失敗しました。更新済みの予約は維持されるので、再実行してください。");
           }
-          updated++;
+          counts.updated++;
         });
         pageToken = listed.body.nextPageToken;
       } while (pageToken);
     });
-    Logger.log("この予約アプリの今後の予約を公開に変更しました: " + updated + "件。");
-    return updated;
+    return report;
   } finally {
     lock.releaseLock();
   }
+}
+
+/** 日時・招待者・件名を保持し、招待を再送せずに公開・予定ありを補正して再読込する。 */
+function ensurePublicEvent(path, event, token) {
+  if (!event || event.status !== "confirmed") return null;
+  if (isPublicBusyEvent(event)) return event;
+  var changed = calendarRequest("patch", path + "?sendUpdates=none", { visibility: "public", transparency: "opaque" }, token);
+  if (changed.status !== 200 || !changed.body || changed.body.id !== event.id) return null;
+  var saved = calendarRequest("get", path, undefined, token);
+  if (saved.status !== 200 || !saved.body || saved.body.id !== event.id || saved.body.status !== "confirmed" ||
+    !isPublicBusyEvent(saved.body)) return null;
+  return saved.body;
+}
+
+function isPublicBusyEvent(event) {
+  // Calendar APIは既定値のopaqueを省略する場合がある。明示的なtransparentだけが空き時間。
+  return event.visibility === "public" && (event.transparency === undefined || event.transparency === "opaque");
+}
+
+function completePublicBooking(path, event, fingerprint, booking, token) {
+  if (!event || event.id !== path.slice(path.lastIndexOf("/") + 1)) return "UNAVAILABLE";
+  var code = existingBookingCode(event, fingerprint, booking);
+  if (code !== "OK") return code;
+  var saved = ensurePublicEvent(path, event, token);
+  return saved ? existingBookingCode(saved, fingerprint, booking) : "UNAVAILABLE";
+}
+
+function bookingOutcome(code) {
+  return bookingResponse(code, code === "OK" ? {
+    bookingPolicy: BOOKING_PUBLICATION_POLICY, visibility: "public", transparency: "opaque"
+  } : undefined);
 }
 
 function bookingResponse(code, data) {

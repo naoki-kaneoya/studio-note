@@ -93,7 +93,7 @@ function handler(options = {}) {
 }
 
 test("空きAPIは選択施設と利用日を転送し、時間帯だけを返す", async () => {
-  const h = handler({ backendResult: { code: "OK", busy: [period("12:00", "14:00")], secret: "must-not-leak", email: "private@example.com" } });
+  const h = handler({ backendResult: { code: "OK", bookingPolicy: "public-opaque-v2", busy: [period("12:00", "14:00")], secret: "must-not-leak", email: "private@example.com" } });
   const response = await h.send();
   assert.equal(response.status, 200);
   assert.equal(response.headers.get("Cache-Control"), "no-store");
@@ -125,7 +125,7 @@ test("空きAPIは不正な施設・日付をGoogleへ転送しない", async ()
   }
 });
 
-for (const backendResult of [{ code: "UNAVAILABLE" }, { code: "OK" }, { code: "OK", busy: [null] }, []]) {
+for (const backendResult of [{ code: "UNAVAILABLE" }, { code: "OK", bookingPolicy: "public-opaque-v2" }, { code: "OK", bookingPolicy: "public-opaque-v2", busy: [null] }, []]) {
   test("空きAPIは取得失敗・不完全な結果を空きとしない: " + JSON.stringify(backendResult), async () => {
     const response = await handler({ backendResult }).send();
     assert.equal(response.status, 503);
@@ -133,6 +133,13 @@ for (const backendResult of [{ code: "UNAVAILABLE" }, { code: "OK" }, { code: "O
     assert.equal((await response.json()).ok, undefined);
   });
 }
+
+test("公開確認に対応していないGoogle側コードでは空き枠を予約可能と表示しない", async () => {
+  const h = handler({ backendResult: { code: "OK", busy: [] } });
+  const response = await h.send();
+  assert.equal(response.status, 503);
+  assert.equal((await response.json()).ok, undefined);
+});
 
 test("空きAPIは通信障害の詳細・秘密値を公開しない", async () => {
   const response = await handler({ failure: true }).send();

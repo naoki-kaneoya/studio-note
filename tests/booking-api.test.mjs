@@ -69,16 +69,16 @@ test("別サイトからの送信は拒否する", async () => {
 });
 
 test("HTTPSトンネルからの予約は設定済みの公開元から受け付ける", async () => {
-  const { invoke, calls } = apiHarness("bookings", { env: { BOOKING_SITE_ORIGIN: "https://imac.example.ts.net" } });
+  const { invoke, calls } = apiHarness("bookings", { env: { BOOKING_SITE_ORIGIN: "https://booking.example" } });
   const response = await invoke(new Request("http://127.0.0.1:3000/api/bookings", {
-    method: "POST", headers: { "Content-Type": "application/json", Origin: "https://imac.example.ts.net" }, body: JSON.stringify(input),
+    method: "POST", headers: { "Content-Type": "application/json", Origin: "https://booking.example" }, body: JSON.stringify(input),
   }));
   assert.equal(response.status, 200);
   assert.equal(calls.length, 1);
 });
 
 test("公開元設定後も他のサイトからの予約は転送しない", async () => {
-  const { invoke, calls } = apiHarness("bookings", { env: { BOOKING_SITE_ORIGIN: "https://imac.example.ts.net" } });
+  const { invoke, calls } = apiHarness("bookings", { env: { BOOKING_SITE_ORIGIN: "https://booking.example" } });
   const response = await invoke(new Request("http://127.0.0.1:3000/api/bookings", {
     method: "POST", headers: { "Content-Type": "application/json", Origin: "https://other.example", "X-Forwarded-Host": "other.example" }, body: JSON.stringify(input),
   }));
@@ -92,7 +92,7 @@ test("転送ヘッダーだけでは予約の公開元を許可しない", async
   assert.equal(h.calls.length, 0);
 });
 
-for (const origin of ["http://imac.example.ts.net", "https://imac.example.ts.net/", "https://imac.example.ts.net/book", "https://imac.example.ts.net?token=value", "https://user:password@imac.example.ts.net"]) {
+for (const origin of ["http://booking.example", "https://booking.example/", "https://booking.example/book", "https://booking.example?token=value", "https://user:password@booking.example"]) {
   test("不正な公開元設定では受付を止める: " + origin, async () => {
     const h = handler({ env: { BOOKING_SITE_ORIGIN: origin } });
     assert.equal((await h.send()).status, 503);

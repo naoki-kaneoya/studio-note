@@ -11,7 +11,7 @@ Googleカレンダーの空き時間を表示し、選んだ時間で予約を�
 - Tailwind CSS v3.4（デザイントークンは `tailwind.config.ts`）
 - microCMS（`microcms-js-sdk`）
 - Resend（フォーム送信）
-- iMacでの本番稼働（自動起動・Tailscale FunnelによるHTTPS公開）
+- Vercelでの本番稼働
 
 ## 開発者向けセットアップ
 ```bash
@@ -34,7 +34,7 @@ npm run dev                  # http://localhost:3000
 | `NEXT_PUBLIC_GA_ID` | GA4 測定ID |
 | `GOOGLE_BOOKING_SCRIPT_URL` | 空き表示・直接予約用のApps Script Webアプリの `/exec` URL |
 | `GOOGLE_BOOKING_SECRET` | Apps Scriptの `BOOKING_BACKEND_SECRET` と同じサーバー間通信の秘密値 |
-| `BOOKING_SITE_ORIGIN` | HTTPSトンネルで公開する場合の予約送信元。末尾の `/` は付けない |
+| `BOOKING_SITE_ORIGIN` | 任意。予約を受け付けるHTTPS公開元を明示する場合に使用。末尾の `/` は付けない |
 
 > 環境変数が未設定でもビルド・表示は壊れない設計（CMSは空配列、フォームは設定未完了エラーを返す）。
 
@@ -47,7 +47,7 @@ Google Apps Script側で予約を順番に処理し、施設ごとの既存の�
 
 接続先が未設定の場合はフォームに「予約受付の準備中」と表示し、登録は行わない。
 接続手順と外部予約サイトとの同期条件は [docs/booking-setup.md](docs/booking-setup.md) を参照。
-今回の公開先はiMac本体。環境変数をiMacの `.env.local` に設定し、[docs/deploy-imac.md](docs/deploy-imac.md) の起動・自動起動・HTTPS公開手順を使う。Codexのクラウド環境の設定とは別。Vercelを利用する場合の手順は [docs/deploy-vercel.md](docs/deploy-vercel.md) を参照。
+公開先はVercel。対象プロジェクトの **Settings → Environment Variables** へGoogle接続の2つの設定を登録し、再デプロイする。Vercelのサーバーから設定済みGoogle Apps Scriptを呼び出し、Googleカレンダーの空き確認・予約登録・招待送信を行う。iMacや予約者の端末はブラウザーで利用する。公開手順は [docs/deploy-vercel.md](docs/deploy-vercel.md) を参照。
 
 ```bash
 npm test                     # Node.js 24: 日時・重複・再送・ロックの検証

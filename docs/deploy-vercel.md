@@ -23,6 +23,7 @@ Google Apps Scriptの準備は [booking-setup.md](booking-setup.md) を参照。
 | `GOOGLE_BOOKING_SECRET` | Apps Scriptの `BOOKING_BACKEND_SECRET` と同じ秘密値 | 空き時間の表示と直接予約 |
 
 この2つはサーバー専用で、`NEXT_PUBLIC_` は付けない。Productionに設定し、検証環境にも必要ならPreviewに設定する。`BOOKING_ACCESS_CODE`は不要。
+必要に応じて `BOOKING_SITE_ORIGIN=https://<本番ドメイン>` をProductionへ設定し、予約送信を受け付ける公開元を明示できる。末尾の `/` は付けない。設定した場合は、そのドメインの `/book` を共有する。未設定の場合はリクエストURLと同じ公開元から受け付ける。
 以下は既存サイトのその他の機能に応じて登録する。microCMSやResendの設定がなくても、Google接続が設定されていれば空き表示と直接予約は利用できる。
 
 | Key | 現時点の値 | 備考 |

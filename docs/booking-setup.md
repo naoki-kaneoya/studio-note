@@ -143,7 +143,7 @@ Googleカレンダーへの通信と権限認証はApps Script側で行うため
 
 ## 公開して共有するURL
 
-今回の公開先はiMac本体。[docs/deploy-imac.md](deploy-imac.md) に従って、Google接続の設定を移し、自動起動とHTTPS公開を設定する。Vercelに公開する場合の手順は [docs/deploy-vercel.md](deploy-vercel.md) を参照。
+公開先はVercel。[docs/deploy-vercel.md](deploy-vercel.md) に従い、既存の本番プロジェクトへGoogle接続の設定と今回のコードを反映する。予約サイトはVercelで稼働し、Googleカレンダーの操作は設定済みApps Scriptを経由する。iMacをサーバーとして稼働させる必要はない。
 公開とGoogle接続が完了したら `https://<公開先のドメイン>/book` をグループへ共有する。
 Codexクラウド環境をセットアップしただけでは、一般利用者が使える公開URLは発行されない。
 

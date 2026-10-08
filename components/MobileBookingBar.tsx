@@ -1,12 +1,9 @@
 "use client";
 
-import { usePathname } from "next/navigation";
 import BookingButton from "@/components/BookingButton";
 
 /** スマホのみ画面下部に固定する予約バー。 */
 export default function MobileBookingBar() {
-  const pathname = usePathname();
-  if (pathname === "/book" || pathname.startsWith("/noda/book")) return null;
   return (
     <div
       className="md:hidden"

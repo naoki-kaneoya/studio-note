@@ -45,7 +45,7 @@ select:focus {
 
 /* スマホ固定予約バー分の余白 */
 @media (max-width: 767px) {
-  body {
+  .facility-site {
     padding-bottom: var(--booking-bar-height);
   }
 }

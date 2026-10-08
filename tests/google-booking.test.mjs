@@ -13,11 +13,12 @@ const input = {
   startTime: "10:00", endTime: "12:00", requestId: "12345678-1234-4234-8234-123456789abc",
 };
 
-function harness({ calendars, properties, lockAvailable = true, failInsert = false, afterInsert } = {}) {
+function harness({ calendars, properties, lockAvailable = true, failInsert = false, afterInsert, failList = false, failPatch = false, listPageSize = 250 } = {}) {
   const calls = [];
   const events = new Map();
+  const logs = [];
   const config = { BOOKING_BACKEND_SECRET: "test-backend-secret", BOOKING_CALENDARS: '{"studio":"studio@example.com","noda":"noda@example.com"}', ...properties };
-  const state = { locked: false, releases: 0, insertions: 0 };
+  const state = { locked: false, releases: 0, insertions: 0, updates: 0 };
   class FixedDate extends Date {
     constructor(...args) { super(...(args.length ? args : [now.getTime()])); }
   }
@@ -34,6 +35,7 @@ function harness({ calendars, properties, lockAvailable = true, failInsert = fal
     },
     ContentService: { MimeType: { JSON: "application/json" }, createTextOutput: (text) => ({ text, setMimeType() { return this; } }) },
     ScriptApp: { getOAuthToken: () => "test-token" },
+    Logger: { log: (message) => logs.push(message) },
     UrlFetchApp: { fetch: (url, options) => {
       if (!url.endsWith("/freeBusy")) assert.equal(state.locked, true, "予約の読み取り・登録は共有ロックの内側で行う");
       assert.equal(options.headers.Authorization, "Bearer test-token");
@@ -46,6 +48,25 @@ function harness({ calendars, properties, lockAvailable = true, failInsert = fal
           busy: [...events].filter(([key, event]) => key.includes("/calendars/" + encodeURIComponent(id) + "/events/") && event.status !== "cancelled")
             .map(([, event]) => ({ start: event.start.dateTime, end: event.end.dateTime })),
         }])) };
+      } else if (options.method === "get" && new URL(url).pathname.endsWith("/events")) {
+        if (failList) { status = 403; result = { error: { code: 403 } }; }
+        else {
+          const parsed = new URL(url);
+          const eventBase = parsed.origin + parsed.pathname + "/";
+          const from = Date.parse(parsed.searchParams.get("timeMin"));
+          const matching = [...events].filter(([key, event]) => key.startsWith(eventBase) && Date.parse(event.end.dateTime) > from).map(([, event]) => event);
+          const offset = Number(parsed.searchParams.get("pageToken") || 0);
+          result = matching.length ? { items: matching.slice(offset, offset + listPageSize) } : {};
+          if (offset + listPageSize < matching.length) result.nextPageToken = String(offset + listPageSize);
+        }
+      } else if (options.method === "patch") {
+        if (failPatch) { status = 403; result = { error: { code: 403 } }; }
+        else {
+          const key = url.split("?")[0];
+          const previous = events.get(key);
+          if (!previous) { status = 404; result = {}; }
+          else { result = { ...previous, ...body }; events.set(key, result); state.updates++; }
+        }
       } else if (options.method === "get") {
         result = events.get(url.split("/events/")[0] + "/events/" + url.split("/").at(-1));
         if (!result) { status = 404; result = { error: { code: 404 } }; }
@@ -69,7 +90,7 @@ function harness({ calendars, properties, lockAvailable = true, failInsert = fal
     return JSON.parse(result.text).code;
   };
   const availability = (query = { resource: "noda", date: input.date }, secret = config.BOOKING_BACKEND_SECRET) => JSON.parse(context.doPost({ postData: { contents: JSON.stringify({ secret, action: "availability", availability: query }) } }).text);
-  return { context, submit, availability, calls, events, state };
+  return { context, submit, availability, calls, events, state, logs };
 }
 
 test("空きがあれば日本時間で登録し、入力メールを招待する", () => {
@@ -79,6 +100,7 @@ test("空きがあれば日本時間で登録し、入力メールを招待す�
   assert.equal(insertion.body.attendees[0].email, input.email);
   assert.equal(insertion.body.start.dateTime, "2026-10-06T10:00:00+09:00");
   assert.equal(insertion.body.transparency, "opaque");
+  assert.equal(insertion.body.visibility, "public", "外部の予約サービスが読める公開予定として登録する");
   assert.equal(h.state.insertions, 1);
   assert.equal(h.state.releases, 1);
   assert.ok(h.calls.every((call) => call.locked), "予約の空き確認も共有ロックの内側で行う");
@@ -92,6 +114,67 @@ test("庄内を選ぶと庄内の共通カレンダーにだけ照合・登録�
   const insertion = h.calls.find((call) => call.url.endsWith("/events?sendUpdates=all"));
   assert.match(insertion.url, /studio%40example\.com/);
   assert.equal(insertion.body.extendedProperties.private.studioNoteResource, "studio");
+  assert.equal(insertion.body.visibility, "public");
+});
+
+test("既存の今後のアプリ予約だけを公開へ変更し、日時・招待者を保持する", () => {
+  const h = harness();
+  h.submit();
+  h.submit({ ...input, resource: "studio" });
+  for (const event of h.events.values()) event.visibility = "private";
+  const original = structuredClone([...h.events]);
+  const base = "https://www.googleapis.com/calendar/v3/calendars/noda%40example.com/events/";
+  const sample = [...h.events.values()][0];
+  h.events.set(base + "external-event", { ...sample, id: "external-event", visibility: "private" });
+  const pastId = "stnote" + "a".repeat(64);
+  h.events.set(base + pastId, { ...sample, id: pastId, visibility: "private", start: { dateTime: "2026-10-04T10:00:00+09:00" }, end: { dateTime: "2026-10-04T12:00:00+09:00" } });
+  const unmarkedId = "stnote" + "b".repeat(64);
+  h.events.set(base + unmarkedId, { ...sample, id: unmarkedId, visibility: "private", extendedProperties: { private: { studioNoteResource: "noda" } } });
+  const cancelledId = "stnote" + "c".repeat(64);
+  h.events.set(base + cancelledId, { ...sample, id: cancelledId, visibility: "private", status: "cancelled" });
+  assert.equal(h.context.publishExistingBookings(), 2);
+  for (const [key, before] of original) assert.deepEqual(h.events.get(key), { ...before, visibility: "public" });
+  for (const id of ["external-event", pastId, unmarkedId, cancelledId]) assert.equal(h.events.get(base + id).visibility, "private");
+  assert.equal(h.state.insertions, 2, "予定や招待を新規作成しない");
+  const patches = h.calls.filter((call) => call.options.method === "patch");
+  assert.equal(patches.length, 2);
+  for (const patch of patches) {
+    assert.deepEqual(patch.body, { visibility: "public" });
+    assert.match(patch.url, /sendUpdates=none$/);
+  }
+  assert.ok(h.logs.every((message) => !message.includes(input.name) && !message.includes(input.email)));
+  assert.equal(h.context.publishExistingBookings(), 0, "公開済みの予約は再更新しない");
+  assert.equal(h.state.updates, 2);
+});
+
+test("既存予約の公開変更は一覧の次ページも処理する", () => {
+  const h = harness({ listPageSize: 1 });
+  h.submit();
+  h.submit({ ...input, date: "2026-10-07", requestId: "aaaaaaaa-1234-4234-8234-123456789abc" });
+  for (const event of h.events.values()) event.visibility = "private";
+  assert.equal(h.context.publishExistingBookings(), 2);
+  assert.ok([...h.events.values()].every((event) => event.visibility === "public"));
+  assert.ok(h.calls.some((call) => call.url.includes("pageToken=1")));
+});
+
+for (const [label, flags] of [["一覧の取得に失敗", { failList: true }], ["公開変更に失敗", { failPatch: true }]]) {
+  test(label + "したら完了とせず、ロックを解放する", () => {
+    const h = harness(flags);
+    h.submit();
+    [...h.events.values()][0].visibility = "private";
+    const releasedBefore = h.state.releases;
+    assert.throws(() => h.context.publishExistingBookings(), /取得できません|更新に失敗/);
+    assert.equal(h.state.releases, releasedBefore + 1);
+    assert.equal(h.state.locked, false);
+    assert.equal([...h.events.values()][0].visibility, "private");
+  });
+}
+
+test("予約処理中は既存予約の公開変更を開始しない", () => {
+  const h = harness({ lockAvailable: false });
+  assert.throws(() => h.context.publishExistingBookings(), /予約処理中/);
+  assert.equal(h.calls.length, 0);
+  assert.equal(h.state.releases, 0);
 });
 
 test("別施設なら同じ時間に予約でき、同じ施設の重複は拒否する", () => {
